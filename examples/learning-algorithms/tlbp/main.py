@@ -16,7 +16,7 @@ import pycuda.driver as cuda
 from torch.nn.utils import clip_grad_norm_
 import global_v as glv
 
-from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import confusion_matrix
 import pandas as pd
 import seaborn as sn
 import matplotlib.pyplot as plt
@@ -240,9 +240,9 @@ if __name__ == '__main__':
         l_states.training.reset()
         train(net, train_loader, optimizer, e, l_states, params['Network'], params['Layers'], error)
         l_states.training.update()
-        l_states.testing.reset()
-        test(net, test_loader, e, l_states, params['Network'], params['Layers'], early_stopping)
-        l_states.testing.update()
+        # l_states.testing.reset()
+        # test(net, test_loader, e, l_states, params['Network'], params['Layers'], early_stopping)
+        # l_states.testing.update()
         # if early_stopping.early_stop:
         #     break
     
