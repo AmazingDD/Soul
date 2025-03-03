@@ -17,9 +17,9 @@ from torch.nn.utils import clip_grad_norm_
 import global_v as glv
 
 # from sklearn.metrics import confusion_matrix
-import pandas as pd
-import seaborn as sn
-import matplotlib.pyplot as plt
+# import pandas as pd
+# import seaborn as sn
+# import matplotlib.pyplot as plt
 import argparse
 
 
@@ -151,14 +151,14 @@ def test(network, testloader, epoch, states, network_config, layers_config, earl
     test_accuracy = correct / total
     if test_accuracy > best_acc:
         best_acc = test_accuracy
-        y_pred = np.concatenate(y_pred)
-        y_true = np.concatenate(y_true)
-        cf = confusion_matrix(y_true, y_pred, labels=np.arange(n_class))
-        df_cm = pd.DataFrame(cf, index = [str(ind*25) for ind in range(n_class)], columns=[str(ind*25) for ind in range(n_class)])
-        plt.figure()
-        sn.heatmap(df_cm, annot=True)
-        plt.savefig("confusion_matrix.png")
-        plt.close()
+        # y_pred = np.concatenate(y_pred)
+        # y_true = np.concatenate(y_true)
+        # cf = confusion_matrix(y_true, y_pred, labels=np.arange(n_class))
+        # df_cm = pd.DataFrame(cf, index = [str(ind*25) for ind in range(n_class)], columns=[str(ind*25) for ind in range(n_class)])
+        # plt.figure()
+        # sn.heatmap(df_cm, annot=True)
+        # plt.savefig("confusion_matrix.png")
+        # plt.close()
 
     logging.info("Train Accuracy: %.3f (%.3f).\n", 100. * test_accuracy, 100 * best_acc)
     # Save checkpoint.
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     if params['Network']['dataset'] == "MNIST":
         data_path = os.path.expanduser(params['Network']['data_path'])
         train_loader, test_loader = loadMNIST.get_mnist(data_path, params['Network'])
-    elif params['Network']['dataset'] == "NMNIST_Spiking":
+    elif params['Network']['dataset'] == "NMNIST":
         data_path = os.path.expanduser(params['Network']['data_path'])
         train_loader, test_loader = loadNMNIST.get_nmnist(data_path, params['Network'])
     elif params['Network']['dataset'] == "CIFAR10":
@@ -240,10 +240,10 @@ if __name__ == '__main__':
         l_states.training.reset()
         train(net, train_loader, optimizer, e, l_states, params['Network'], params['Layers'], error)
         l_states.training.update()
-        # l_states.testing.reset()
-        # test(net, test_loader, e, l_states, params['Network'], params['Layers'], early_stopping)
-        # l_states.testing.update()
-        # if early_stopping.early_stop:
-        #     break
+        l_states.testing.reset()
+        test(net, test_loader, e, l_states, params['Network'], params['Layers'], early_stopping)
+        l_states.testing.update()
+        if early_stopping.early_stop:
+            break
     
     logging.info("Best Accuracy: %.3f, at epoch: %d \n", best_acc, best_epoch)

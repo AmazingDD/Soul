@@ -1,6 +1,6 @@
 Network:
-  epochs: 150
-  batch_size: 64
+  epochs: 120
+  batch_size: 50
   n_steps: 5
   dataset: "CIFAR10"
   data_path: "datasets/cifar10"

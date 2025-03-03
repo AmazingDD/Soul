@@ -6,6 +6,8 @@ from tqdm import tqdm
 from os import listdir
 from os.path import isfile, join
 
+import torchvision.transforms as transforms
+
 
 class NMNIST(Dataset):
     def __init__(self, dataset_path, n_steps, transform=None):
@@ -26,29 +28,16 @@ class NMNIST(Dataset):
         filename = self.samples[index]
         label = self.labels[index]
 
-        # data = np.zeros((2, 34, 34, self.n_steps))
+        # resize = transforms.Resize(size=(32, 32), interpolation=transforms.InterpolationMode.NEAREST)
+        # # data = np.zeros((2, 34, 34, self.n_steps))
+        # data = np.load(filename)['frames']  # (T, C, H, W)        
+        # data = torch.from_numpy(data).float()
+        # data = resize(data) # (T, C, H, W)     
+        # data = data.numpy()
+        # data = np.transpose(data, (1, 2, 3, 0)) # (T, C, H, W) -> (C, H, W, T)
         data = np.load(filename)['frames']  # (T, C, H, W)
         data = np.transpose(data, (1, 2, 3, 0)) # (T, C, H, W) -> (C, H, W, T)
 
-        # f = open(filename, 'rb')
-        # lines = f.readlines()
-        # for line in lines:
-        #     if line is None:
-        #         break
-        #     line = line.split()
-        #     line = [int(l) for l in line]
-        #     pos = line[0] - 1
-        #     if pos >= 1156:
-        #         channel = 1
-        #         pos -= 1156
-        #     else:
-        #         channel = 0
-        #     y = pos % 34
-        #     x = int(math.floor(pos/34))
-        #     for i in range(1, len(line)):
-        #         if line[i] >= self.n_steps:
-        #             break
-        #         data[channel, x, y, line[i]-1] = 1
         if self.transform:
             data = self.transform(data)
             data = data.type(torch.float32)
