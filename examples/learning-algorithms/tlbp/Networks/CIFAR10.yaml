@@ -3,7 +3,7 @@ Network:
   batch_size: 50
   n_steps: 5
   dataset: "CIFAR10"
-  data_path: "datasets/cifar10"
+  data_path: "/home/yudi/data/cifar10"
   rule: "TSSLBP"
   lr: 0.0002
   loss: "kernel"
