@@ -16,7 +16,7 @@ neuron_map = {
     # "QIF": neuron.QIFNode,
     "CLIF": MultiStepCLIFNeuron,
     # "PSN": neuron.PSN,
-    "GatedLIF": GatedLIFNode
+    "GLIF": GatedLIFNode
 }
 
 class SpikingVGG9(nn.Module):
@@ -73,9 +73,9 @@ class SpikingVGG9(nn.Module):
     
     def _get_neuron_layer(self):
         """根据神经元类型动态返回神经元层"""
-        if self.neuron_type in ["PSN", "GatedLIF"]:
+        if self.neuron_type in ["PSN", "GLIF"]:
             return neuron_map[self.neuron_type](T=self.T, surrogate_function=surrogate.ATan())
-        elif self.neuron_type in ["LIF", "PLIF", "GatedLIF"]:
+        elif self.neuron_type in ["LIF", "PLIF", "GLIF"]:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())
         else:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())    

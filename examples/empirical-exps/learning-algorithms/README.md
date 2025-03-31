@@ -2,10 +2,10 @@
 
  - For backpropogation through time (BPTT), run:
     ```
-
+    python bptt/main.py
     ```
  - For temporal learning backpropagation (TLBP), run:
     ```
-    python tsbp main.py -config Networks/[config_filename].yaml
+    python tlbp/main.py -config Networks/[config_filename].yaml
     ```
 
