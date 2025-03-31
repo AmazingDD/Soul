@@ -1,0 +1,142 @@
+import torch
+import torchvision
+import random
+import torchvision.transforms as transforms
+from torch.utils.data import Dataset, DataLoader
+import warnings
+import os
+import numpy as np
+from os.path import isfile, join
+
+class NMNIST(Dataset):
+    def __init__(self, data_path='data/nmnist/frames_number_20_split_by_number',
+                 train=True, transform=False):
+        if train:
+            self.filepath = os.path.join(data_path, 'train')
+        else:
+            self.filepath = os.path.join(data_path, 'test')
+        self.clslist = os.listdir(self.filepath)
+
+        self.dvs_filelist = []
+        self.targets = []
+
+        # self.resize = transforms.Resize(
+        #     size=(64, 64), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
+        
+        for cls in self.clslist:
+            file_list = os.path.join(self.filepath, cls)
+            for file in os.listdir(file_list):
+                self.dvs_filelist.append(os.path.join(file_list, file))
+                self.targets.append(int(cls))
+        
+        self.classes = range(10)
+        self.data_num = len(self.targets)
+
+    def __getitem__(self, index):
+        file_pth = self.dvs_filelist[index]
+        label = self.targets[index]
+
+        data = torch.from_numpy(np.load(file_pth)['frames']).float()
+        # data = self.resize(data)
+
+        return data, label
+    
+    def __len__(self):
+        return self.data_num
+
+
+class CIFAR10DVS(Dataset):
+    def __init__(self, data_path='data/cifar10_dvs/frames_number_20_split_by_number',
+                 train=True):
+        
+        self.filepath = os.path.join(data_path)
+        self.clslist = os.listdir(self.filepath)
+        self.clslist.sort()
+
+        self.dvs_filelist = []
+        self.targets = []
+
+        # self.resize = transforms.Resize(
+        #     size=(48, 48), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
+
+        for i, cls in enumerate(self.clslist):
+            file_list = os.listdir(os.path.join(self.filepath, cls))
+            num_file = len(file_list)
+
+            cut_idx = int(num_file * 0.9)
+            train_file_list = file_list[:cut_idx]
+            test_split_list = file_list[cut_idx:]
+            for file in file_list:
+                if train:
+                    if file in train_file_list:
+                        self.dvs_filelist.append(os.path.join(self.filepath, cls, file))
+                        self.targets.append(i)
+                else:
+                    if file in test_split_list:
+                        self.dvs_filelist.append(os.path.join(self.filepath, cls, file))
+                        self.targets.append(i)
+
+        self.data_num = len(self.dvs_filelist)
+        self.data_type = 'train' if train else 'test'
+
+        self.classes = range(10)
+
+    def __getitem__(self, index):
+        file_pth = self.dvs_filelist[index]
+        label = self.targets[index]
+        data = torch.from_numpy(np.load(file_pth)['frames']).float()
+        # data = self.resize(data)
+
+        return data, label
+
+    def __len__(self):
+        return self.data_num
+
+
+
+class NCaltech101(Dataset):
+    def __init__(self, data_path='data/ncaltech/frames_number_8_split_by_number',
+                 data_type='train'):
+        self.filepath = os.path.join(data_path)
+        self.clslist = os.listdir(self.filepath)
+        self.clslist.sort()
+
+        self.dvs_filelist = []
+        self.targets = []
+        self.resize = transforms.Resize(
+            size=(48, 48), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
+
+        for i, cls in enumerate(self.clslist):
+            # print (i, cls)
+            file_list = os.listdir(os.path.join(self.filepath, cls))
+            num_file = len(file_list)
+
+            cut_idx = int(num_file * 0.9)
+            train_file_list = file_list[:cut_idx]
+            test_split_list = file_list[cut_idx:]
+            for file in file_list:
+                if data_type == 'train':
+                    if file in train_file_list:
+                        self.dvs_filelist.append(os.path.join(self.filepath, cls, file))
+                        self.targets.append(i)
+                else:
+                    if file in test_split_list:
+                        self.dvs_filelist.append(os.path.join(self.filepath, cls, file))
+                        self.targets.append(i)
+
+        self.data_num = len(self.dvs_filelist)
+        self.data_type = data_type
+
+        self.classes = range(101)
+
+
+    def __getitem__(self, index):
+        file_pth = self.dvs_filelist[index]
+        label = self.targets[index]
+        data = torch.from_numpy(np.load(file_pth)['frames']).float()
+        data = self.resize(data)
+
+        return data, label
+
+    def __len__(self):
+        return self.data_num
