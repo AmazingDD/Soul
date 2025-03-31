@@ -1,5 +1,5 @@
-# from spikingjelly.datasets.es_imagenet import ESImageNet
-from spikingjelly.activation_based import functional # , layer, neuron
+from spikingjelly.datasets.es_imagenet import ESImageNet
+from spikingjelly.activation_based import layer, functional, neuron
 from spikingjelly.datasets.n_mnist import NMNIST
 from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
 from spikingjelly.datasets.n_caltech101 import NCaltech101 as sj_NCaltech101
@@ -13,15 +13,15 @@ import torchvision.transforms as transforms
 import numpy as np
 import os
 from tqdm import tqdm
-from model import SpikingVGG9 # , SpikingVGG5, Spikformer
+from model import SpikingVGG9, SpikingVGG5, Spikformer
 import argparse
-from dataset import NCaltech101
+from dataset_my import NCaltech101
 from utils import set_seed, split_to_train_test_set
 
 model_map = {
-    # "SpikingVGG5": SpikingVGG5,
+    "SpikingVGG5": SpikingVGG5,
     "SpikingVGG9": SpikingVGG9,
-    # "Spikformer": Spikformer,
+    "Spikformer": Spikformer,
 }
 
     
@@ -69,6 +69,9 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
     return trainloader, testloader
 
 def train(args):
+    if not os.path.exists('./saved_models'):
+        os.makedirs('./saved_models')
+
     input_shape = None
     if args.dataset == "MNIST":
         input_shape = (1, 28, 28)
@@ -101,10 +104,10 @@ def train(args):
 
     best_acc = 0.0  # 用于保存当前最佳准确率
 
-    for epoch in tqdm(range(epochs)):  # 设置训练的 epoch 数
+    for epoch in range(epochs):  # 设置训练的 epoch 数
         model.train()
         running_loss = 0.0
-        for i, (inputs, labels) in tqdm(enumerate(trainloader)):
+        for i, (inputs, labels) in tqdm(enumerate(trainloader), unit='batch'):
             inputs, labels = inputs.to('cuda'), labels.to('cuda')
             optimizer.zero_grad()
             logit = model(inputs)
@@ -135,7 +138,7 @@ def train(args):
         # 如果当前准确率超过最佳准确率，保存模型
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.state_dict(), f'saved_models/best_{args.model_type}_{args.neuron_type}_{args.dataset}_{args.seed}.pth')
+            torch.save(model.state_dict(), f'./saved_models/best_{args.model_type}_{args.neuron_type}_{args.dataset}_{args.seed}.pth')
             print(f'Best model saved with accuracy: {best_acc:.2f}%')
 
     print('Finished Training')
