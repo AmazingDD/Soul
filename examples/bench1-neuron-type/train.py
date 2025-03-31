@@ -1,5 +1,5 @@
-from spikingjelly.datasets.es_imagenet import ESImageNet
-from spikingjelly.activation_based import layer, functional, neuron
+# from spikingjelly.datasets.es_imagenet import ESImageNet
+from spikingjelly.activation_based import functional
 from spikingjelly.datasets.n_mnist import NMNIST
 from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
 from spikingjelly.datasets.n_caltech101 import NCaltech101 as sj_NCaltech101
@@ -8,20 +8,20 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torch.optim.lr_scheduler as lr_scheduler
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, random_split
 import torchvision.transforms as transforms
-import numpy as np
+# import numpy as np
 import os
 from tqdm import tqdm
-from model import SpikingVGG9, SpikingVGG5, Spikformer
+from model import SpikingVGG9 # , SpikingVGG5, Spikformer
 import argparse
-from dataset_my import NCaltech101
+from dataset import NCaltech101
 from utils import set_seed, split_to_train_test_set
 
 model_map = {
-    "SpikingVGG5": SpikingVGG5,
+    # "SpikingVGG5": SpikingVGG5,
     "SpikingVGG9": SpikingVGG9,
-    "Spikformer": Spikformer,
+    # "Spikformer": Spikformer,
 }
 
     
@@ -61,7 +61,7 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
         trainset = NCaltech101(data_type="train")
         testset = NCaltech101(data_type="test")
     else:
-        raise ValueError(f"不支持的dataset_name: {dataset_name}")
+        raise ValueError(f"Invalid dataset_name: {dataset_name}")
 
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
