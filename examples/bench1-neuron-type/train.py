@@ -3,6 +3,7 @@ from spikingjelly.activation_based import functional
 from spikingjelly.datasets.n_mnist import NMNIST
 from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
 from spikingjelly.datasets.n_caltech101 import NCaltech101 as sj_NCaltech101
+from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,10 +14,11 @@ import torchvision.transforms as transforms
 # import numpy as np
 import os
 from tqdm import tqdm
-from model import SpikingVGG9 # , SpikingVGG5, Spikformer
+from model import SpikingVGG9, Spikformer # , SpikingVGG5, Spikformer
 import argparse
 from dataset import NCaltech101
 from utils import set_seed, split_to_train_test_set
+from torchvision import datasets
 
 model_map = {
     # "SpikingVGG5": SpikingVGG5,
@@ -60,8 +62,21 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
         dummy_dataset = sj_NCaltech101(root=data_dir, data_type='frame', frames_number=args.T, split_by='number')
         trainset = NCaltech101(data_type="train")
         testset = NCaltech101(data_type="test")
+    elif dataset_name == "TinyImageNet":
+        tinyimagenet_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            transforms.Resize((64, 64))
+        ])
+
+        trainset = datasets.ImageFolder(root=os.path.join(data_dir, 'train'), transform=tinyimagenet_transform)
+        testset = datasets.ImageFolder(root=os.path.join(data_dir, 'val'), transform=tinyimagenet_transform)
+
+    elif dataset_name == "DVSGesture":
+        trainset = DVS128Gesture(root=data_dir, train=True, data_type='frame', frames_number=args.T, split_by='number')
+        testset = DVS128Gesture(root=data_dir, train=False, data_type='frame', frames_number=args.T, split_by='number')
     else:
-        raise ValueError(f"Invalid dataset_name: {dataset_name}")
+        raise ValueError(f"不支持的dataset_name: {dataset_name}")
 
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
@@ -85,6 +100,10 @@ def train(args):
         input_shape = (2, 128, 128)
     elif args.dataset == "NCaltech101":
         input_shape = (2, 48, 48)
+    elif args.dataset == "TinyImageNet":
+        input_shape = (3, 64, 64)
+    elif args.dataset == "DVSGesture":
+        input_shape = (2, 128, 128)
     # print(model_map[args.model_type])
     model = model_map[args.model_type](num_classes=args.num_classes, T=args.T, neuron_type=args.neuron_type, input_shape=input_shape).cuda()
     

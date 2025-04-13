@@ -5,6 +5,7 @@ import inspect
 from .CLIF import MultiStepCLIFNeuron
 from .GLIF import GatedLIFNode
 from .LMH import LMH
+from .ILIF import ILIF
 import copy
 
 neuron_map = {
@@ -18,6 +19,7 @@ neuron_map = {
     "CLIF": MultiStepCLIFNeuron,
     # "PSN": neuron.PSN,
     "GLIF": GatedLIFNode,
+    "ILIF": ILIF,
     "LMH": LMH,
 }
 
@@ -79,7 +81,7 @@ class SpikingVGG9(nn.Module):
             return neuron_map[self.neuron_type](T=self.T, surrogate_function=surrogate.ATan())
         elif self.neuron_type in ["LIF", "PLIF", "GLIF"]:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())
-        elif self.neuron_type in ["LMH"]:
+        elif self.neuron_type in ["LMH", "ILIF"]:
             return neuron_map[self.neuron_type]()
         else:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())    
