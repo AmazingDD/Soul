@@ -4,6 +4,7 @@ import torch.nn as nn
 import inspect
 from .CLIF import MultiStepCLIFNeuron
 from .GLIF import GatedLIFNode
+from .LMH import LMH
 import copy
 
 neuron_map = {
@@ -16,7 +17,8 @@ neuron_map = {
     # "QIF": neuron.QIFNode,
     "CLIF": MultiStepCLIFNeuron,
     # "PSN": neuron.PSN,
-    "GLIF": GatedLIFNode
+    "GLIF": GatedLIFNode,
+    "LMH": LMH,
 }
 
 class SpikingVGG9(nn.Module):
@@ -77,6 +79,8 @@ class SpikingVGG9(nn.Module):
             return neuron_map[self.neuron_type](T=self.T, surrogate_function=surrogate.ATan())
         elif self.neuron_type in ["LIF", "PLIF", "GLIF"]:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())
+        elif self.neuron_type in ["LMH"]:
+            return neuron_map[self.neuron_type]()
         else:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())    
     
