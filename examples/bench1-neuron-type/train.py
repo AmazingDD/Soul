@@ -39,6 +39,10 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
         cifar10_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465),(0.2023, 0.1994, 0.2010))])
         trainset = torchvision.datasets.CIFAR10(root=data_dir, train=True, transform=cifar10_transform, download=True)
         testset = torchvision.datasets.CIFAR10(root=data_dir, train=False, transform=cifar10_transform, download=True)
+    elif dataset_name == "CIFAR100":
+        cifar100_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465),(0.2023, 0.1994, 0.2010))])
+        trainset = torchvision.datasets.CIFAR100(root=data_dir, train=True, transform=cifar100_transform, download=True)
+        testset = torchvision.datasets.CIFAR100(root=data_dir, train=False, transform=cifar100_transform, download=True)
     elif dataset_name == "Caltech101":
         caltech101_transform = transforms.Compose(
             [
@@ -91,6 +95,8 @@ def train(args):
     if args.dataset == "MNIST":
         input_shape = (1, 28, 28)
     elif args.dataset == "CIFAR10":
+        input_shape = (3, 32, 32)
+    elif args.dataset == "CIFAR100":
         input_shape = (3, 32, 32)
     elif args.dataset == "Caltech101":
         input_shape = (3, 64, 64)
