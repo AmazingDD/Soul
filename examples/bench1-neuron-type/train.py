@@ -23,7 +23,7 @@ from torchvision import datasets
 model_map = {
     # "SpikingVGG5": SpikingVGG5,
     "SpikingVGG9": SpikingVGG9,
-    # "Spikformer": Spikformer,
+    "Spikformer": Spikformer,
 }
 
     
@@ -112,7 +112,7 @@ def train(args):
         input_shape = (2, 128, 128)
     # print(model_map[args.model_type])
     model = model_map[args.model_type](num_classes=args.num_classes, T=args.T, neuron_type=args.neuron_type, input_shape=input_shape).cuda()
-    
+    print(model)
     trainloader, testloader = get_dataloader(
         args.dataset,
         args.batch_size,
@@ -176,11 +176,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=10)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--dataset", type=str, default="MNIST")
-    parser.add_argument("--data_dir", type=str, default="./data")
+    parser.add_argument("--dataset", type=str, default="CIFAR10")
+    parser.add_argument("--data_dir", type=str, default="./data/CIFAR10")
     parser.add_argument("--lr", type=float, default=5e-4)
-    parser.add_argument("--neuron_type", type=str, default="LIF")
-    parser.add_argument("--model_type", type=str, default="SpikingVGG9")
+    parser.add_argument("--neuron_type", type=str, default="ILIF")
+    parser.add_argument("--model_type", type=str, default="Spikformer")
     
     args = parser.parse_args()
     for k,v in sorted(vars(args).items()):

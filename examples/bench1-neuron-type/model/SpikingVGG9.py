@@ -79,7 +79,7 @@ class SpikingVGG9(nn.Module):
         """根据神经元类型动态返回神经元层"""
         if self.neuron_type in ["PSN", "GLIF"]:
             return neuron_map[self.neuron_type](T=self.T, surrogate_function=surrogate.ATan())
-        elif self.neuron_type in ["LIF", "PLIF", "GLIF"]:
+        elif self.neuron_type in ["LIF", "PLIF"]:
             return neuron_map[self.neuron_type](surrogate_function=surrogate.ATan())
         elif self.neuron_type in ["LMH", "ILIF"]:
             return neuron_map[self.neuron_type]()

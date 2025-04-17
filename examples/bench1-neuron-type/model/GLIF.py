@@ -11,7 +11,7 @@ import torch.nn as nn
 
 class GatedLIFNode(base.MemoryModule):
     def __init__(self, T: int, inplane = None,
-                 init_linear_decay = None, init_v_subreset = None, init_tau: float = 0.25, init_v_threshold: float = 0.5, init_conduct: float = 0.5,
+                 init_linear_decay = None, init_v_subreset = None, init_tau: float = 0.25, init_v_threshold: float = 0.5, init_conduct: float = 0.5, v_threshold: float=1.0,
                  surrogate_function: Callable = surrogate.Sigmoid(), step_mode='m', backend='torch'):
         """
         * :ref:`中文API <GatedLIFNode.__init__-cn>`
@@ -162,4 +162,4 @@ class GatedLIFNode(base.MemoryModule):
             spike = self.neuronal_fire()
             self.v = self.u
             y_seq.append(spike)
-        return torch.stack(y_seq)
+        return torch.stack(y_seq).squeeze()
