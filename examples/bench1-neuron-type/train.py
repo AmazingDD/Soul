@@ -172,13 +172,13 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--T", type=int, default=4)
+    parser.add_argument("--T", type=int, default=16)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_classes", type=int, default=10)
-    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--dataset", type=str, default="MNIST")
-    parser.add_argument("--data_dir", type=str, default="./data/MNIST")
+    parser.add_argument("--dataset", type=str, default="CIFAR10DVS")
+    parser.add_argument("--data_dir", type=str, default="./data/CIFAR10DVS")
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--neuron_type", type=str, default="ILIF")
     parser.add_argument("--model_type", type=str, default="SEWResNet18")

@@ -97,6 +97,7 @@ class SEWResNet18(nn.Module):
         if norm_layer is None:
             norm_layer = layer.BatchNorm2d
         self._norm_layer = norm_layer
+        self.T=T
         in_channels = input_shape[0]
         img_size_h = input_shape[1]
         img_size_w = input_shape[2]
@@ -124,7 +125,7 @@ class SEWResNet18(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2], cnf=cnf, neuron_type=neuron_type, T=T)
         self.avgpool = layer.AdaptiveAvgPool2d((1, 1))
-        self.fc = layer.Linear(512 * block.expansion, num_classes)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, layer.Conv2d):
@@ -140,6 +141,7 @@ class SEWResNet18(nn.Module):
             for m in self.modules():
                 if isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
+        functional.set_step_mode(self, "m")
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False, cnf: str=None, neuron_type: str="LIF", T:int=4):
         norm_layer = self._norm_layer
@@ -178,14 +180,15 @@ class SEWResNet18(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        if self.avgpool.step_mode == 's':
-            x = torch.flatten(x, 1)
-        elif self.avgpool.step_mode == 'm':
-            x = torch.flatten(x, 2)
-        
+        x = torch.flatten(x, 2)
+        # print("final.shape: ", x.shape)
+        x = x.mean(0)
         x = self.fc(x)
-
         return x
 
     def forward(self, x):
+        if len(x.shape) == 4:
+            x = x.unsqueeze(1).repeat(1, self.T, 1, 1, 1) # B, T, C, H, W
+        x = x.transpose(0, 1) # [T, B, C, H, W]
+        # print("input shape: ", x.shape)
         return self._forward_impl(x)
