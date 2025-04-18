@@ -14,7 +14,7 @@ import torchvision.transforms as transforms
 # import numpy as np
 import os
 from tqdm import tqdm
-from model import SpikingVGG9, Spikformer # , SpikingVGG5, Spikformer
+from model import SpikingVGG9, Spikformer, SEWResNet18 # , SpikingVGG5, Spikformer
 import argparse
 from dataset import NCaltech101
 from utils import set_seed, split_to_train_test_set
@@ -24,6 +24,7 @@ model_map = {
     # "SpikingVGG5": SpikingVGG5,
     "SpikingVGG9": SpikingVGG9,
     "Spikformer": Spikformer,
+    "SEWResNet18": SEWResNet18
 }
 
     
@@ -176,11 +177,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_classes", type=int, default=10)
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--dataset", type=str, default="CIFAR10")
-    parser.add_argument("--data_dir", type=str, default="./data/CIFAR10")
+    parser.add_argument("--dataset", type=str, default="MNIST")
+    parser.add_argument("--data_dir", type=str, default="./data/MNIST")
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--neuron_type", type=str, default="ILIF")
-    parser.add_argument("--model_type", type=str, default="Spikformer")
+    parser.add_argument("--model_type", type=str, default="SEWResNet18")
     
     args = parser.parse_args()
     for k,v in sorted(vars(args).items()):
