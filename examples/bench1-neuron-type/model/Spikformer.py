@@ -198,8 +198,8 @@ class SPS(nn.Module):
 
 class Spikformer(nn.Module):
     def __init__(self,
-                 input_shape=[3, 32, 32], patch_size=4, num_classes=10,
-                 embed_dims=384, num_heads=12, mlp_ratios=4, qkv_bias=False, qk_scale=None,
+                 input_shape=[3, 32, 32], patch_size=16, num_classes=10,
+                 embed_dims=256, num_heads=16, mlp_ratios=4, qkv_bias=False, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm,
                  depths=4, sr_ratios=[8, 4, 2], T = 4, neuron_type="LIF"
                  ):

@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 
 from dataset import NCaltech101, NMNIST, CIFAR10DVS
 from model import SpikingVGG9
+from model import Spikformer
 from utils import set_seed, split_to_train_test_set
 
 import power_check as pc
@@ -22,7 +23,7 @@ import power_check as pc
 model_map = {
     # "SpikingVGG5": SpikingVGG5,
     "SpikingVGG9": SpikingVGG9,
-    # "Spikformer": Spikformer,
+    "Spikformer": Spikformer,
 }
 
 def get_dataloader(dataset_name, data_dir):
