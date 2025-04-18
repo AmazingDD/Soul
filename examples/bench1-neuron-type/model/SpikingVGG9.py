@@ -4,7 +4,6 @@ import torch.nn as nn
 import inspect
 from .CLIF import MultiStepCLIFNeuron
 from .GLIF import GatedLIFNode
-from .LMH import LMH
 from .ILIF import ILIF
 import copy
 
@@ -20,7 +19,6 @@ neuron_map = {
     # "PSN": neuron.PSN,
     "GLIF": GatedLIFNode,
     "ILIF": ILIF,
-    "LMH": LMH,
 }
 
 class SpikingVGG9(nn.Module):

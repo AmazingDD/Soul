@@ -5,7 +5,6 @@ from spikingjelly.activation_based import functional, neuron, surrogate
 
 from .CLIF import MultiStepCLIFNeuron
 from .GLIF import GatedLIFNode
-from .LMH import LMH
 from .ILIF import ILIF
 import copy
 
@@ -21,7 +20,6 @@ neuron_map = {
     # "PSN": neuron.PSN,
     "GLIF": GatedLIFNode,
     "ILIF": ILIF,
-    "LMH": LMH,
 }
 
 def _get_neuron_layer(neuron_type, T=4, v_threshold=1.0):
