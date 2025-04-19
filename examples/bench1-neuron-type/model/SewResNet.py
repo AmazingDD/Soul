@@ -1,12 +1,12 @@
 from spikingjelly.activation_based import layer, functional, neuron, surrogate
-from spikingjelly.activation_based.model.sew_resnet import sew_resnet18
+# from spikingjelly.activation_based.model.sew_resnet import sew_resnet18
 import torch
 import torch.nn as nn
-import inspect
+# import inspect
 from .CLIF import MultiStepCLIFNeuron
 from .GLIF import GatedLIFNode
 from .ILIF import ILIF
-import copy
+# import copy
 
 neuron_map = {
     "LIF": neuron.LIFNode,

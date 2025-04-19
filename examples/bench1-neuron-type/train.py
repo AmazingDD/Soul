@@ -81,7 +81,7 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
         trainset = DVS128Gesture(root=data_dir, train=True, data_type='frame', frames_number=args.T, split_by='number')
         testset = DVS128Gesture(root=data_dir, train=False, data_type='frame', frames_number=args.T, split_by='number')
     else:
-        raise ValueError(f"不支持的dataset_name: {dataset_name}")
+        raise ValueError(f"Invalid dataset_name: {dataset_name}")
 
     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
