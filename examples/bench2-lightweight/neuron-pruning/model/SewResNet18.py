@@ -155,12 +155,14 @@ class SewResNet18(nn.Module):
                  width_per_group=64, 
                  replace_stride_with_dilation=None, 
                  norm_layer: nn.Module = None, 
-                 T=4):
+                 T=4,
+                 input_shape=(3, 32, 32)):
         super().__init__()
 
         self.skip = ['conv1']
 
         self.T = T
+        C, H, W = input_shape
         
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
@@ -177,7 +179,7 @@ class SewResNet18(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = ConvBlock(
-            nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.Conv2d(C, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False),
             norm_layer(self.inplanes), create_lif(), static=True, T=T, sparse_weights=False,
             sparse_neurons=False)
         self.maxpool = layer.SeqToANNContainer(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
@@ -258,7 +260,7 @@ class SewResNet18(nn.Module):
         x = self.layer4(x)
 
         x = self.avgpool(x)
-        x = torch.flatten(x, 2).mean(0) # (B, D)
+        x = torch.flatten(x, 2).mean(0) # -> (B, D)
 
         out = self.fc(x)
 

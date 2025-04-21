@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_type", type=str, default="SEWResNet18")
     
     args = parser.parse_args()
-    for k,v in sorted(vars(args).items()):
+    for k, v in sorted(vars(args).items()):
         print(k,'=',v)
     set_seed(args.seed)
     train(args)
