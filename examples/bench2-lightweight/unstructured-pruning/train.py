@@ -134,7 +134,7 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
 
     max_test_acc = -1
-    train_times, total_train_step = 0, len(data_loader_train) * args.epochs
+    # train_times, total_train_step = 0, len(data_loader_train) * args.epochs
     for epoch in range(args.epochs):
         model.train()
         for image, target in tqdm(data_loader_train, unit='batch'):
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
             loss.backward()
             optimizer.step()
-            train_times += 1
+            # train_times += 1
 
             # STDS
             # if args.gradual is not None:

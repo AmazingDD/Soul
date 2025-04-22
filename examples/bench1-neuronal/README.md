@@ -4,7 +4,9 @@
 
 ### Training:
 
-run the scripts in `shell`
+```
+CUDA_VISIBLE_DEVICES=[GPU ID] python train.py --T 4 --num_classes 10 --epochs 100 --batch_size 64 --dataset CIFAR10 --data_dir [dataset path] --lr 5e-4 --neuron_type [LIF model] --model_type [model name] > [logfile name].log
+```
 
 ### Testing in Jetson Orin AGX
 
