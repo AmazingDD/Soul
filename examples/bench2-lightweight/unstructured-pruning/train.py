@@ -92,7 +92,7 @@ if __name__ == '__main__':
     logger = setup_logger(args.log_dir, args)
     logger.info(str(args))
 
-    ensure_dir(os.path.join(args.model_dir, 'unstructured-pruning'))
+    ensure_dir(args.model_dir)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -177,7 +177,7 @@ if __name__ == '__main__':
             if test_acc > max_test_acc:
                 max_test_acc = test_acc
                 torch.save(model.state_dict(), 
-                           os.path.join(args.model_dir, 'unstructured-pruning', f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}_seed{args.seed}_ckpt_best.pth'))
+                           os.path.join(args.model_dir, f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}_seed{args.seed}_ckpt_best.pth'))
                 logger.info(f'Best test_acc={test_acc:.4f}')
                 
         # sparsity
