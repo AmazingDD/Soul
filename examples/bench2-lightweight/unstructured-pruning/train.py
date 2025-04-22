@@ -15,7 +15,7 @@ from model import SpikingVGG9, SewResNet18
 
 model_map = {
     "SpikingVGG9": SpikingVGG9,
-    "SEWResNet18": SewResNet18,
+    "SewResNet18": SewResNet18,
 }
 
 def load_data(dataset_dir, dataset_type, T):
@@ -77,12 +77,11 @@ def parse_args():
     parser.add_argument('-model', default='SpikingVGG9', help='model name')
     parser.add_argument('-T', default=4, type=int, help='simulating time-steps')
     parser.add_argument('-b', '--batch_size', default=64, type=int, help='batch size')
-    parser.add_argument('-epochs', default=150, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('-epochs', default=100, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('-lr', default=1e-4, type=float, help='learning rate')
     # pruning parameter
-    parser.add_argument('-sf', '--sparse-function', type=str, choices=['identity', 'st'], default='st', help="choice of reparameterization function") # identity for no pruning, st for soft threshold
-    parser.add_argument('-threshold', '--flat-width', type=float, default=1.0) # also known as threshold
-    parser.add_argument('-gradual', type=str, choices=['linear', 'sine'], default=None, help="increase type of threshold") # if None, no change for threshold
+    parser.add_argument('-thr', '--flat-width', type=float, default=0.1) # also known as threshold
+    # parser.add_argument('-gradual', type=str, choices=['linear', 'sine'], default='linear', help="increase type of threshold") # if None, no change for threshold
 
     args = parser.parse_args()
 
@@ -126,7 +125,7 @@ if __name__ == '__main__':
     else:
         device = 'cpu'
 
-    model = model_map[args.model](num_classes=num_classes, T=args.T, input_shape=input_shape)
+    model = model_map[args.model](num_classes=num_classes, T=args.T, input_shape=input_shape, threshold=args.flat_width)
     # logger.info(model)
     model.to(device)
 
@@ -149,13 +148,14 @@ if __name__ == '__main__':
             optimizer.step()
             train_times += 1
 
-            if args.gradual is not None:
-                for module in model.modules():
-                    if hasattr(module, 'setFlatWidth'):
-                        if args.gradual == 'linear':
-                            module.setFlatWidth(linearInc(train_times, total_train_step) * args.flat_width)
-                        elif args.gradual == 'sine':
-                            module.setFlatWidth(sineInc(train_times, total_train_step) * args.flat_width)
+            # STDS
+            # if args.gradual is not None:
+            #     for module in model.modules():
+            #         if hasattr(module, 'setFlatWidth'):
+            #             if args.gradual == 'linear':
+            #                 module.setFlatWidth(linearInc(train_times, total_train_step) * args.flat_width)
+            #             elif args.gradual == 'sine':
+            #                 module.setFlatWidth(sineInc(train_times, total_train_step) * args.flat_width)
         
         lr_scheduler.step()
 
@@ -178,6 +178,7 @@ if __name__ == '__main__':
                 max_test_acc = test_acc
                 torch.save(model.state_dict(), 
                            os.path.join(args.model_dir, 'unstructured-pruning', f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}_seed{args.seed}_ckpt_best.pth'))
+                logger.info(f'Best test_acc={test_acc:.4f}')
                 
         # sparsity
         total_zerocnt = 0
