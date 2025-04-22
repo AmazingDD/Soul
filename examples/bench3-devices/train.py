@@ -140,6 +140,7 @@ if __name__ == '__main__':
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.1) # for imagenet
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     criterion = nn.CrossEntropyLoss()
 
