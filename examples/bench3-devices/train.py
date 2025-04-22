@@ -17,7 +17,7 @@ def ensure_dir(path):
         os.makedirs(path)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Unstructured weight pruning for SNNs')
+    parser = argparse.ArgumentParser(description='preparation for deployment of heterogenous devices')
     parser.add_argument('-seed', default=42, type=int)
     parser.add_argument('-model_dir', type=str, default='./saved_models/', help='root dir for saving trained model')
     parser.add_argument('-data_dir', type=str, default='.', help='root dir of dataset')
