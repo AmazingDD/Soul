@@ -11,11 +11,11 @@ import torchvision
 from torchvision import transforms
 
 from utils import *
-from model import SpikingVGG9, SEWResNet18
+from model import SpikingVGG9, SewResNet18
 
 model_map = {
     "SpikingVGG9": SpikingVGG9,
-    "SEWResNet18": SEWResNet18
+    "SEWResNet18": SewResNet18,
 }
 
 def load_data(dataset_dir, dataset_type, T):
@@ -46,16 +46,16 @@ def load_data(dataset_dir, dataset_type, T):
     elif dataset_type == 'DVSGesture':
         from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
         transform_train = DVStransform(
-            transform=transforms.Compose([transforms.Resize(size=(64, 64), antialias=True)])
+            transform=transforms.Compose([transforms.Resize(size=(128, 128), antialias=True)])
         )
         transform_test = DVStransform(
-            transform=transforms.Resize(size=(64, 64), antialias=True)
+            transform=transforms.Resize(size=(128, 128), antialias=True)
         )
 
         train_dataset = DVS128Gesture(dataset_dir, train=True, data_type='frame', frames_number=T, split_by='number')
         test_dataset = DVS128Gesture(dataset_dir, train=False, data_type='frame', frames_number=T, split_by='number')
 
-        input_shape = (2, 64, 64)
+        input_shape = (2, 128, 128)
         num_classes = 11
     else:
         raise ValueError(dataset_type)
@@ -74,6 +74,7 @@ def parse_args():
     parser.add_argument('-gpu', type=int, default=0, help='gpu id')
     parser.add_argument('-workers', default=4, type=int, metavar='N', help='number of data loading workers (default: 4)')
     parser.add_argument('-dataset', default='CIFAR10', help='dataset name')
+    parser.add_argument('-model', default='SpikingVGG9', help='model name')
     parser.add_argument('-T', default=4, type=int, help='simulating time-steps')
     parser.add_argument('-b', '--batch_size', default=64, type=int, help='batch size')
     parser.add_argument('-epochs', default=150, type=int, metavar='N', help='number of total epochs to run')
@@ -83,14 +84,16 @@ def parse_args():
     parser.add_argument('-threshold', '--flat-width', type=float, default=1.0) # also known as threshold
     parser.add_argument('-gradual', type=str, choices=['linear', 'sine'], default=None, help="increase type of threshold") # if None, no change for threshold
 
-    args = parse_args()
+    args = parser.parse_args()
 
     return args
 
 if __name__ == '__main__':
     args = parse_args()
-    logger = setup_logger(args.log_dir)
+    logger = setup_logger(args.log_dir, args)
     logger.info(str(args))
+
+    ensure_dir(os.path.join(args.model_dir, 'unstructured-pruning'))
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -123,8 +126,8 @@ if __name__ == '__main__':
     else:
         device = 'cpu'
 
-    model = model_map[args.model_type](num_classes=num_classes, T=args.T, input_shape=input_shape)
-    logger.info(model)
+    model = model_map[args.model](num_classes=num_classes, T=args.T, input_shape=input_shape)
+    # logger.info(model)
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -176,8 +179,6 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), 
                            os.path.join(args.model_dir, 'unstructured-pruning', f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}_seed{args.seed}_ckpt_best.pth'))
                 
-        logger.info(f'Epoch[{epoch + 1}/{args.epochs}] test_loss={test_loss:.4f}, test_acc={test_acc:.4f}, max_test_acc={max_test_acc:.4f}')
-                
         # sparsity
         total_zerocnt = 0
         total_numel = 0
@@ -186,5 +187,7 @@ if __name__ == '__main__':
                 zerocnt, numel = module.getSparsity()
                 total_zerocnt += zerocnt
                 total_numel += numel
-                # print(f'{name}: {zerocnt / numel * 100:.2f}%')
-        logger.info(f'total: {total_zerocnt / total_numel * 100:.2f}%')
+                print(f'{name}: {zerocnt / numel * 100:.2f}%')
+        logger.info(f' sparsity/total: {total_zerocnt / total_numel * 100:.2f}%')
+
+        logger.info(f' Epoch[{epoch + 1}/{args.epochs}] test_loss={test_loss:.4f}, test_acc={test_acc:.4f}, max_test_acc={max_test_acc:.4f}')

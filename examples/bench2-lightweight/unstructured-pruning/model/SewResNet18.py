@@ -155,7 +155,7 @@ class SewResNet18(nn.Module):
         if zero_init_residual:
             zero_init_blocks(self, connect_f)
 
-        functional.set_step_mode('m')
+        functional.set_step_mode(self, 'm')
 
     def _forward_impl(self, x):
         x = self.conv1(x)

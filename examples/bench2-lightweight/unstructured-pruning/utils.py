@@ -4,19 +4,10 @@ import datetime
 import logging
 
 import torch
-import torch.nn as nn
-
-from .model.sparse import PConv, PLinear
 
 def ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-
-def get_local_time():
-    cur = datetime.datetime.now()
-    cur = cur.strftime('%b-%d-%Y_%H-%M-%S')
-
-    return cur
 
 def sineInc(n, N):
     return (1.0 + math.sin(math.pi * (float(n) / N - 0.5))) / 2
@@ -47,14 +38,16 @@ class DatasetWarpper(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.dataset)
     
-def setup_logger(output_dir):
+def setup_logger(output_dir, args):
+    ensure_dir(output_dir)
+
     logger = logging.getLogger(__name__)
     logger.propagate = False
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s',
                                   datefmt=r'%Y-%m-%d %H:%M:%S')
 
-    file_handler = logging.FileHandler(os.path.join(output_dir, 'log.log'))
+    file_handler = logging.FileHandler(os.path.join(output_dir, f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}.log'))
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
     logger.addHandler(file_handler)

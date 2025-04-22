@@ -40,7 +40,7 @@ class SpikingVGG9(nn.Module):
         self.bn2 = layer.BatchNorm2d(64)
         self.lif2 = create_lif()
 
-        self.maxpool1 = nn.MaxPool2d(2, 2)
+        self.maxpool1 = layer.MaxPool2d(2, 2)
 
         self.conv3 = PConv(
             64, 
@@ -66,7 +66,7 @@ class SpikingVGG9(nn.Module):
         self.bn4 = layer.BatchNorm2d(128)
         self.lif4 = create_lif()
 
-        self.maxpool2 = nn.MaxPool2d(2, 2)
+        self.maxpool2 = layer.MaxPool2d(2, 2)
 
         self.conv5 = PConv(
             128, 
@@ -101,10 +101,10 @@ class SpikingVGG9(nn.Module):
             gradual=self.gradual, 
             flat_width=self.flat_width
         ) 
-        self.bn6 = layer.BatchNorm2d(256)
-        self.lif6 = create_lif()
+        self.bn7 = layer.BatchNorm2d(256)
+        self.lif7 = create_lif()
 
-        self.maxpool3 = nn.MaxPool2d(2, 2)
+        self.maxpool3 = layer.MaxPool2d(2, 2)
 
         self.ln1 = PLinear(
             in_features_dim, 
@@ -114,13 +114,13 @@ class SpikingVGG9(nn.Module):
             gradual=self.gradual, 
             flat_width=self.flat_width
         )
-        self.lif7 = create_lif()
+        self.lif8 = create_lif()
 
         self.fc = nn.Linear(1024, num_classes, bias=False)
 
         self.init_weight()
 
-        functional.set_step_mode('m')
+        functional.set_step_mode(self, 'm')
 
     def init_weight(self):
         for m in self.modules():
@@ -172,7 +172,8 @@ class SpikingVGG9(nn.Module):
 
         x = x.view(x.shape[0], x.shape[1], -1)  # -> (T, B, D)
         x = self.ln1(x)
-        x = self.lif7(x).mean(0) # -> (B, D)
+        x = self.lif8(x).mean(0) # -> (B, D)
+
         x = self.fc(x) # -> (B, num_cls)
 
         return x
