@@ -16,7 +16,7 @@ import os
 from tqdm import tqdm
 from model import SpikingVGG9, Spikformer, SEWResNet18 # , SpikingVGG5, Spikformer
 import argparse
-from dataset import NCaltech101
+from dataset import NCaltech101, TinyImageNetDataset
 from utils import set_seed, split_to_train_test_set
 from torchvision import datasets
 
@@ -69,13 +69,16 @@ def get_dataloader(dataset_name, batch_size, data_dir, args):
         testset = NCaltech101(data_type="test")
     elif dataset_name == "TinyImageNet":
         tinyimagenet_transform = transforms.Compose([
-            transforms.Resize((64, 64)),
+            transforms.Resize((64, 64), interpolation=transforms.InterpolationMode.BICUBIC),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
-        trainset = datasets.ImageFolder(root=os.path.join(data_dir, 'train'), transform=tinyimagenet_transform)
-        testset = datasets.ImageFolder(root=os.path.join(data_dir, 'val'), transform=tinyimagenet_transform)
+        # trainset = datasets.ImageFolder(root=os.path.join(data_dir, 'train'), transform=tinyimagenet_transform)
+        # testset = datasets.ImageFolder(root=os.path.join(data_dir, 'val'), transform=tinyimagenet_transform)
+
+        trainset = TinyImageNetDataset(data_dir, train=True, transform=tinyimagenet_transform)
+        testset = TinyImageNetDataset(data_dir, train=False, transform=tinyimagenet_transform)
 
     elif dataset_name == "DVSGesture":
         trainset = DVS128Gesture(root=data_dir, train=True, data_type='frame', frames_number=args.T, split_by='number')

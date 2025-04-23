@@ -1,8 +1,10 @@
 import os
+import pickle
 import random
 import argparse
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -32,6 +34,34 @@ def parse_args():
     args = parser.parse_args()
 
     return args
+
+class TinyImageNetDataset(torch.utils.data.Dataset):
+    def __init__(self, root='./tiny-imagenet-200', train=True, transform=None):
+        super().__init__()
+
+        self.root = root
+        self.transform = transform
+        self.train = train
+
+        if self.train:
+            with open(os.path.join(self.root, 'train_dataset.pkl'), 'rb') as f:
+                self.data, self.targets = pickle.load(f)
+        else:
+            with open(os.path.join(self.root, 'val_dataset.pkl'), 'rb') as f:
+                self.data, self.targets = pickle.load(f)
+
+        self.targets = self.targets.type(torch.LongTensor)
+
+    def __getitem__(self, index):
+        data = self.data[index].permute(1, 2, 0).numpy()
+        data = Image.fromarray(data)
+        if self.transform:
+            data = self.transform(data)
+
+        return data, self.targets[index] 
+    
+    def __len__(self):
+        return len(self.targets)
 
 def load_data(dataset_dir, dataset_type, T):
     if dataset_type == 'CIFAR10':
@@ -67,8 +97,11 @@ def load_data(dataset_dir, dataset_type, T):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
-        train_dataset = torchvision.datasets.ImageFolder(root=os.path.join(dataset_dir, 'train'), transform=tinyimagenet_transform)
-        test_dataset = torchvision.datasets.ImageFolder(root=os.path.join(dataset_dir, 'val'), transform=tinyimagenet_transform)
+        # train_dataset = torchvision.datasets.ImageFolder(root=os.path.join(dataset_dir, 'train'), transform=tinyimagenet_transform)
+        # test_dataset = torchvision.datasets.ImageFolder(root=os.path.join(dataset_dir, 'val'), transform=tinyimagenet_transform)
+
+        train_dataset = TinyImageNetDataset(dataset_dir, train=True, transform=tinyimagenet_transform)
+        test_dataset = TinyImageNetDataset(dataset_dir, train=False, transform=tinyimagenet_transform)
 
         input_shape = (3, 224, 224)
         num_classes = 200

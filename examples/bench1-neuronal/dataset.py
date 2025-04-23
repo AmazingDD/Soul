@@ -7,6 +7,8 @@ import warnings
 import os
 import numpy as np
 from os.path import isfile, join
+import pickle
+from PIL import Image 
 
 class NMNIST(Dataset):
     def __init__(self, data_path='data/nmnist/frames_number_20_split_by_number',
@@ -140,3 +142,31 @@ class NCaltech101(Dataset):
 
     def __len__(self):
         return self.data_num
+    
+class TinyImageNetDataset(torch.utils.data.Dataset):
+    def __init__(self, root='./tiny-imagenet-200', train=True, transform=None):
+        super().__init__()
+
+        self.root = root
+        self.transform = transform
+        self.train = train
+
+        if self.train:
+            with open(os.path.join(self.root, 'train_dataset.pkl'), 'rb') as f:
+                self.data, self.targets = pickle.load(f)
+        else:
+            with open(os.path.join(self.root, 'val_dataset.pkl'), 'rb') as f:
+                self.data, self.targets = pickle.load(f)
+
+        self.targets = self.targets.type(torch.LongTensor)
+
+    def __getitem__(self, index):
+        data = self.data[index].permute(1, 2, 0).numpy()
+        data = Image.fromarray(data)
+        if self.transform:
+            data = self.transform(data)
+
+        return data, self.targets[index] 
+    
+    def __len__(self):
+        return len(self.targets)
