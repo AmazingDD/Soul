@@ -90,12 +90,13 @@ class SpikingVGG9(nn.Module):
 
         self.maxpool3 = layer.MaxPool2d(2, 2)
 
-        self.ln1 = PLinear(
-            self.flat_width,
-            in_features_dim, 
-            1024, 
-            bias=False, 
-        )
+        # self.ln1 = PLinear(
+        #     self.flat_width,
+        #     in_features_dim, 
+        #     1024, 
+        #     bias=False, 
+        # )
+        self.ln1 = layer.Linear(in_features_dim, 1024, bias=False)
         self.lif8 = create_lif()
 
         self.fc = nn.Linear(1024, num_classes, bias=False)
