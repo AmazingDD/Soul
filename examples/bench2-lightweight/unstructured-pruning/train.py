@@ -90,7 +90,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     logger = setup_logger(args.log_dir, args)
-    logger.info(str(args))
+    logger.info(' ' + str(args))
 
     ensure_dir(args.model_dir)
 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = False
 
     dataset_train, dataset_test, input_shape, num_classes = load_data(args.data_dir, args.dataset, args.T)
-    logger.info(f'dataset_train: {len(dataset_train)}, dataset_test: {len(dataset_test)}')
+    logger.info(f' dataset_train: {len(dataset_train)}, dataset_test: {len(dataset_test)}')
 
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train, 
@@ -169,21 +169,21 @@ if __name__ == '__main__':
             test_loss /= num_samples
             test_acc /= num_samples
 
+            # sparsity
+            total_zerocnt = 0
+            total_numel = 0
+            for name, module in model.named_modules():
+                if hasattr(module, "getSparsity"):
+                    zerocnt, numel = module.getSparsity()
+                    total_zerocnt += zerocnt
+                    total_numel += numel
+                    print(f'{name}: {zerocnt / numel * 100:.2f}%')
+            sparsity_rate = total_zerocnt / total_numel * 100
+
             if test_acc > max_test_acc:
                 max_test_acc = test_acc
                 torch.save(model.state_dict(), 
                            os.path.join(args.model_dir, f'{args.dataset}_{args.model}_T{args.T}_thr{args.flat_width}_seed{args.seed}_ckpt_best.pth'))
-                logger.info(f'Best test_acc={test_acc:.4f}')
-                
-        # sparsity
-        total_zerocnt = 0
-        total_numel = 0
-        for name, module in model.named_modules():
-            if hasattr(module, "getSparsity"):
-                zerocnt, numel = module.getSparsity()
-                total_zerocnt += zerocnt
-                total_numel += numel
-                print(f'{name}: {zerocnt / numel * 100:.2f}%')
-        logger.info(f' sparsity/total: {total_zerocnt / total_numel * 100:.2f}%')
+                logger.info(f' Best test_acc={test_acc:.4f} corresponding sparsity: {sparsity_rate:.2f}%')
 
-        logger.info(f' Epoch[{epoch + 1}/{args.epochs}] test_loss={test_loss:.4f}, test_acc={test_acc:.4f}, max_test_acc={max_test_acc:.4f}')
+        logger.info(f' Epoch[{epoch + 1}/{args.epochs}] test_loss={test_loss:.4f}, test_acc={test_acc:.4f}, sparsity/total: {sparsity_rate:.2f}%, max_test_acc={max_test_acc:.4f}')
