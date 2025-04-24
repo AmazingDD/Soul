@@ -9,6 +9,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 from vgg import SpikingVGG9
+from sparse import PruningNetworkManager
 
 model_map = {
     "SpikingVGG9": SpikingVGG9,

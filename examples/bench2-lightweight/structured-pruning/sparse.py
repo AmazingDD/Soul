@@ -9,15 +9,15 @@ class PruningNetworkManager(object):
         self.pruning_layers = self.get_pruning_layers(model)
         self.layers = self.get_granularity(model)
 
-        self.all_num = 0.0
-        self.grow_num = 0.0
-        self.prune_num = 0.0
+        self.all_num = None
+        self.grow_num = None
+        self.prune_num = None
 
         self.masks = []
         self.mask_grows = []
 
-        self.grads=[]
-        self.count=1
+        self.grads = []
+        self.count = 1
 
     def get_granularity(self, model): # Channel-wise
         layers = []
@@ -53,7 +53,7 @@ class PruningNetworkManager(object):
         b : float
             ratio of regrowth
         '''
-        old = copy.deepcopy(self.masks)
+
         acts = []
         for pruning_layer in self.pruning_layers:
             activation = pruning_layer.get_activations()
@@ -65,21 +65,81 @@ class PruningNetworkManager(object):
         threshold_indice = sorted_indices[num_elements]
         threshold = torch.cat(acts)[threshold_indice] # the threshold of activation value indicates pruning
 
-        i = 0
-        for i in range(len(acts)): # select masks layer by layer
-            if len(self.masks) != 13: # number of prunelayer
-                mask = (acts[i] > threshold).float().detach()
-                self.masks.append(mask)
-            else:
-                self.masks[i] = (acts[i] > threshold).float().detach()
-            i += 1
+        # i = 0
+        # for i in range(len(acts)): # select masks layer by layer
+        #     if len(self.masks) != 13: # number of prunelayer
+        #         mask = (acts[i] > threshold).float().detach()
+        #         self.masks.append(mask)
+        #     else:
+        #         self.masks[i] = (acts[i] > threshold).float().detach()
+        #     i += 1
+
+        # i = 0
+        # prune_num = 0
+        # for i in range(len(self.masks)):
+        #     prune_num += torch.sum(self.masks[i] == 0).item()
+        #     i += 1
+        # print(prune_num)
+
+        prune_num = 0
+        for act in acts:
+            mask = (act > threshold).float().detach()
+            self.masks.append(mask)
+            prune_num += torch.sum(mask == 0).item()
+        print('initial number of pruning channel ', prune_num)
 
         i = 0
+        channel_gradients_grows = []
+        for module in model.modules():
+            if isinstance(module, nn.BatchNorm2d):
+                gradients_grow = torch.where(
+                    self.masks[i] == 0, 
+                    torch.abs(module.weight.grad),
+                    torch.zeros_like(module.weight.grad)
+                )
+                channel_gradients_grows.append(gradients_grow)
+                i += 1
+        sorted_indices_grow = torch.argsort(torch.cat(channel_gradients_grows), descending=True)
+        num_elements_grow = int(len(sorted_indices_grow) * b)
+        threshold_indice_grow = sorted_indices_grow[num_elements_grow]
+        threshold_grow=torch.cat(channel_gradients_grows)[threshold_indice_grow]
+
         prune_num = 0
         for i in range(len(self.masks)):
+            self.masks[i][channel_gradients_grows[i] > threshold_grow] = 1
             prune_num += torch.sum(self.masks[i] == 0).item()
-            i += 1
-        print(prune_num)
+        print('number of pruning channel after regrowth', prune_num)
+
+
+    def do_masks(self, model):
+        i = 0 
+        for module in model.modules():
+            if isinstance(module, nn.Conv2d):
+                prune_indices = (self.masks[i] == 0).nonzero().view(-1)
+                mask_l = torch.ones_like(module.weight.data) # conve weight (c1,c2, k, k)
+                mask_l[prune_indices, :, :, :] = 0
+                module.weight.data.mul_(mask_l)
+                i += 1
+
+        i = 0
+        for module in model.modules():
+            if isinstance(module, nn.BatchNorm2d):
+                prune_indices = (self.masks[i] == 0).nonzero().view(-1)
+                mask_l = torch.ones_like(module.weight.data)
+                mask_l[prune_indices] = 0
+                module.weight.data.mul_(mask_l)
+                module.bias.data.mul_(mask_l)
+                i += 1
+
+    def compute_prune(self):
+        self.prune_num = 0
+        self.reserve_num = 0
+        self.all_num = 0
+
+        for mask in self.masks:
+            self.prune_num += torch.sum(mask == 0).item()
+            self.grow_num += torch.sum(mask == 1).item()
+            self.all_num += mask.numel()
 
 
 class PruningLayer(nn.Module):
