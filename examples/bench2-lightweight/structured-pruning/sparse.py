@@ -46,12 +46,12 @@ class PruningNetworkManager(object):
         for pruning_layer in self.pruning_layers:
             pruning_layer.reset_zero()
 
-    def update_masks(self,model, a, b):
+    def update_masks(self,model, p, q):
         '''
-        a : float
-            ratio of channel pruning
-        b : float
-            ratio of regrowth
+        q : float
+            ratio of channel pruning for sparsity
+        gamma : float
+            ratio of pruned channel reselected for regeneration
         '''
 
         acts = []
@@ -61,25 +61,9 @@ class PruningNetworkManager(object):
 
         sorted_indices = torch.argsort(torch.cat(acts), descending=True)
         print(sorted_indices.shape) # num of all filters
-        num_elements = int(len(sorted_indices) * a)
+        num_elements = int(len(sorted_indices) * p)
         threshold_indice = sorted_indices[num_elements]
         threshold = torch.cat(acts)[threshold_indice] # the threshold of activation value indicates pruning
-
-        # i = 0
-        # for i in range(len(acts)): # select masks layer by layer
-        #     if len(self.masks) != 13: # number of prunelayer
-        #         mask = (acts[i] > threshold).float().detach()
-        #         self.masks.append(mask)
-        #     else:
-        #         self.masks[i] = (acts[i] > threshold).float().detach()
-        #     i += 1
-
-        # i = 0
-        # prune_num = 0
-        # for i in range(len(self.masks)):
-        #     prune_num += torch.sum(self.masks[i] == 0).item()
-        #     i += 1
-        # print(prune_num)
 
         prune_num = 0
         for act in acts:
@@ -87,28 +71,6 @@ class PruningNetworkManager(object):
             self.masks.append(mask)
             prune_num += torch.sum(mask == 0).item()
         print('initial number of pruning channel ', prune_num)
-
-        i = 0
-        channel_gradients_grows = []
-        for module in model.modules():
-            if isinstance(module, nn.BatchNorm2d):
-                gradients_grow = torch.where(
-                    self.masks[i] == 0, 
-                    torch.abs(module.weight.grad),
-                    torch.zeros_like(module.weight.grad)
-                )
-                channel_gradients_grows.append(gradients_grow)
-                i += 1
-        sorted_indices_grow = torch.argsort(torch.cat(channel_gradients_grows), descending=True)
-        num_elements_grow = int(len(sorted_indices_grow) * b)
-        threshold_indice_grow = sorted_indices_grow[num_elements_grow]
-        threshold_grow=torch.cat(channel_gradients_grows)[threshold_indice_grow]
-
-        prune_num = 0
-        for i in range(len(self.masks)):
-            self.masks[i][channel_gradients_grows[i] > threshold_grow] = 1
-            prune_num += torch.sum(self.masks[i] == 0).item()
-        print('number of pruning channel after regrowth', prune_num)
 
 
     def do_masks(self, model):
@@ -141,6 +103,8 @@ class PruningNetworkManager(object):
             self.grow_num += torch.sum(mask == 1).item()
             self.all_num += mask.numel()
 
+        print(f'Pruned Ratio ({self.prune_num}/{self.all_num}) = {self.prune_num / self.all_num * 100:.2f}%')
+
 
 class PruningLayer(nn.Module):
     def __init__(self):
@@ -155,13 +119,14 @@ class PruningLayer(nn.Module):
 
         self.count_input = 1 # counting how many inputs fed into current layer
         self.training_state = True
-        self.spikes = 0
-        self.membrance = 0
+        self.spikes = None
+        self.membrance = None
 
-        self.p1 = 0
-        self.p2 = 0
-        self.aa = 0
-        self.a = 0
+        # self.p1 = 0
+        # self.p2 = 0
+
+        # self.aa = 0
+        # self.a = 0
 
     def set_eval(self):
         self.training_state = False
@@ -184,7 +149,7 @@ class PruningLayer(nn.Module):
             self.spikes = x.detach()
             self.membrance = v.abs().detach()
             v_temp = (self.spikes + self.membrance).detach()
-            if self.aa == 0 or self.v_accumulated is None:
+            if self.v_accumulated is None:
                 # in conv-pruning, the shape of membrane (T, B, C, H, W)
                 # prove the element in a filter has spikes (important) in this batch input
                 # self.v_accumulated = torch.mean(v_temp, dim=(0, 1, 3, 4)) # -> (C)
@@ -200,7 +165,6 @@ class PruningLayer(nn.Module):
     def reset_zero(self):
         self.v_accumulated = None
         self.count_input = 1
-        self.aa = 1
 
     def get_prunenum(self):
         num = torch.sum(self.mask == 0).item()
@@ -214,26 +178,3 @@ class PruningLayer(nn.Module):
         # return self.v_accumulated
         return self.v_accumulated / self.count_input
 
-
-    def save_csv(self):
-        self.mask_zero_percentage = torch.sum(self.mask == 0).item() / self.mask.numel() * 100
-        data = {'Mask Percentage': [self.mask_zero_percentage]}
-        df = pd.DataFrame(data)
-        df.to_csv('mask_info.csv', mode='a', index=False)
-        datathre = {'threshold': [self.threshold], 'reset_threshold': self.restore_threshold}
-        dfthre = pd.DataFrame(datathre)
-        dfthre.to_csv('threshold.csv', mode='a', index=False)
-
-        prune_indices = (self.mask == 0).nonzero()
-        self.prune_count = len(prune_indices)
-
-        restore_indices = (self.mask == 1).nonzero()
-        self.restore_count = len(restore_indices)
-        print('Pruned neurons:', self.prune_count)
-        print('Restored neurons:', self.restore_count)
-        print('P neurons:', self.p1)
-        print('P neurons:', self.p2)
-        print('A neurons:', self.a)
-        print('total:', self.mask.numel())
-        print(self.threshold)
-        print(self.restore_threshold)
