@@ -74,13 +74,15 @@ class SewResNet18(nn.Module):
                  norm_layer=None, connect_f='ADD'):
         super().__init__()
 
-        self.model_type = 'resnet'
-
         block = BasicBlock
         layers = [2, 2, 2, 2]
 
+        self.model_type = 'resnet'
+
+        self.C, self.H, self.W = input_shape
+        self.num_classes = num_classes
         self.T = T
-        C, H, W = input_shape
+
         self.connect_f = connect_f
 
         if norm_layer is None:
@@ -97,7 +99,7 @@ class SewResNet18(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = layer.SeqToANNContainer(
-            nn.Conv2d(C, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.Conv2d(self.C, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False),
             norm_layer(self.inplanes)
         )
         self.sn1 = neuron.LIFNode(detach_reset=True)

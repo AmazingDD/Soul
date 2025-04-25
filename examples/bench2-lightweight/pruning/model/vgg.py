@@ -11,6 +11,7 @@ class SpikingVGG9(nn.Module):
         self.model_type = 'vgg'
 
         self.C, self.H, self.W = input_shape
+        self.num_classes = num_classes
         self.T = T
 
         self.features = nn.Sequential(

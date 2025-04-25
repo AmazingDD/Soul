@@ -1,128 +1,116 @@
 import torch
 import torch.nn as nn
-from spikingjelly.activation_based import layer, neuron, surrogate
+from spikingjelly.activation_based import layer, neuron, surrogate, functional
 import torch.nn.utils.prune as prune
-from copy import deepcopy
 
 class StructuredPruner(object):
-    def __init__(self, model):
+    def __init__(self, model, device):
         self.model_type = model.model_type
 
-        self.original_model = deepcopy(model)
+        self.model = model
+        self.device = device
+        self.model.to(device)
+
+        self.C, self.H, self.W = model.C, model.H, model.W
+        self.num_classes = model.num_classes
         self.prune_ratio = None
-        self.bn_layers = []
-        self.bn_weights = []
-        self.masks = []
 
-    def collect_bn_weights(self):
-        self.bn_layers = []
-        self.bn_weights = []
+    def get_model(self):
+        return self.model
 
-        for m in self.original_model.features.modules():
-            if isinstance(m, (nn.BatchNorm2d, layer.BatchNorm2d)):
-                self.bn_layers.append(m)
-                self.bn_weights.append(m.weight.data.abs().clone())
+    def freeze(self):
+        for name, param in self.model.named_parameters():
+            if 'fc' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
 
-    def compute_prune_masks(self):
-        all_weights = torch.cat(self.bn_weights)
-        num_total = all_weights.shape[0]
-        num_prune = int(num_total * self.prune_ratio)
-        threshold = all_weights.sort()[0][num_prune]
+    def apply_pruning(self, ratio=0.4):
+        # self.pruned_model = deepcopy(self.model)
 
-        self.masks = [(w > threshold) for w in self.bn_weights]
+        bn_weights = []
 
-    def prune_conv_bn(self, conv, bn, mask_out, mask_in=None):
-        idx_out = torch.where(mask_out)[0]
-        idx_in = torch.arange(conv.in_channels) if mask_in is None else torch.where(mask_in)[0]
+        for m in self.model.features:
+            if isinstance(m, layer.BatchNorm2d):
+                bn_weights.append(m.weight.data.abs().clone())
+        all_weights = torch.cat(bn_weights)
+        threshold = torch.quantile(all_weights, ratio)
 
-        new_conv = layer.Conv2d(len(idx_in), len(idx_out), 
-                                kernel_size=conv.kernel_size,
-                                stride=conv.stride,
-                                padding=conv.padding,
-                                dilation=conv.dilation,
-                                groups=conv.groups,
-                                bias=(conv.bias is not None))
-        new_bn = layer.BatchNorm2d(len(idx_out))
+        # 为每个通道生成保留 mask（按顺序）
+        masks = []
+        for bn_w in bn_weights:
+            masks.append(bn_w.ge(threshold).float())
 
-        # weight pruning
-        new_conv.weight.data = conv.weight.data[idx_out][:, idx_in, :, :].clone()
-        if conv.bias is not None:
-            new_conv.bias.data = conv.bias.data[idx_out].clone()
-
-        # bn pruning
-        new_bn.weight.data = bn.weight.data[idx_out].clone()
-        new_bn.bias.data = bn.bias.data[idx_out].clone()
-        new_bn.running_mean = bn.running_mean[idx_out].clone()
-        new_bn.running_mean = bn.running_mean[idx_out].clone()
-
-        return new_conv, new_bn, idx_out
-
-    def rebuild_vgg(self):
-        H, W = self.original_model.H, self.original_model.W
+        # 构造新的通道配置
         new_features = []
-        last_mask = None
-        mask_idx = 0
-        for l in self.original_model.features:
-            if isinstance(l, layer.Conv2d):
-                bn = None
-                # find next bn
-                for i in range(mask_idx, len(self.original_model.features)):
-                    if isinstance(self.original_model.features[i], layer.BatchNorm2d):
-                        bn = self.original_model.features[i]
-                        break
-                assert bn is not None, 'Each Conv2d should be followed by a BatchNorm2d'
-                new_conv, new_bn, last_mask = self.prune_conv_bn(l, bn, self.masks[mask_idx], last_mask)
-                new_features.append(new_conv)
-                new_features.append(new_bn)
-                mask_idx += 1
-            elif isinstance(l, neuron.LIFNode):
-                new_features.append(neuron.LIFNode(detach_reset=True, surrogate_function=surrogate.ATan()))
-            elif isinstance(l, layer.MaxPool2d):
-                new_features.append(l)
+        masks_idx = 0
+        cin = self.C
+        in_mask = torch.ones(cin).bool()
+        H, W = self.H, self.W
+        for m in self.model.features:
+            if isinstance(m, layer.Conv2d):
+                cout = int(masks[masks_idx].sum().item())
+                new_m = layer.Conv2d(cin, cout, kernel_size=3, padding=1, bias=False)
+
+                out_mask = masks[masks_idx]
+                idx_out = torch.where(out_mask > 0)[0]
+                idx_in = torch.where(in_mask > 0)[0]
+
+                new_m.weight.data = m.weight.data[idx_out][:, idx_in, :, :].clone()
+                if m.bias is not None:
+                    new_m.bias.data = m.bias.data[idx_out].clone()
+
+                new_features.append(new_m)
+                
+            elif isinstance(m, layer.MaxPool2d):
+                new_features.append(layer.MaxPool2d(2, 2))
                 H //= 2
                 W //= 2
+            elif isinstance(m, neuron.LIFNode):
+                new_features.append(neuron.LIFNode(detach_reset=True, surrogate_function=surrogate.ATan()))
+            elif isinstance(m, layer.BatchNorm2d):
+                cout = int(masks[masks_idx].sum().item())
+                new_m = layer.BatchNorm2d(cout)
 
-        pruned_model = deepcopy(self.original_model)
-        pruned_model.features = nn.Sequential(*new_features)
+                out_mask = masks[masks_idx]
+                idx = torch.where(out_mask > 0)[0]
+                new_m.weight.data = m.weight.data[idx].clone()
+                new_m.bias.data = m.bias.data[idx].clone()
+                new_m.running_mean = m.running_mean[idx].clone()
+                new_m.running_var = m.running_var[idx].clone()
 
-        out_channels = last_mask.sum().item()
-        last_feature_dim = out_channels * H * W
+                new_features.append(new_m)
 
-        old_fc = self.original_model.fc
-        new_fc = nn.Sequential(
-            layer.Linear(last_feature_dim, old_fc[0].out_features),
+                cin = cout
+                in_mask = masks[masks_idx]
+                masks_idx += 1 
+
+        self.model.features = nn.Sequential(*new_features)
+
+        # 构建新的分类头用来fine-tune
+        self.model.fc = nn.Sequential(
+            layer.Linear(int(in_mask.sum().item()) * H * W, 1024, bias=False),
             neuron.LIFNode(detach_reset=True, surrogate_function=surrogate.ATan()),
-            old_fc[2],
+            nn.Linear(1024, self.num_classes)
         )
-        pruned_model.fc = new_fc
 
-        return pruned_model
-    
-    def prune(self, ratio=0.4):
-        self.prune_ratio = ratio
+        functional.set_step_mode(self.model, 'm')
+        self.model.to(self.device)
 
-        self.collect_bn_weights()
-        self.compute_prune_masks()
-        if self.model_type == 'vgg':
-            return self.rebuild_vgg()
-        else:
-            raise NotImplementedError(f'Model type "{self.model_type}" not supported yet.')
-    
-    @staticmethod
-    def count_params(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 class UnstructuredPruner(object):
-    def __init__(self, model):
+    def __init__(self, model, device):
         self.model = model
+        self.model.to(device)
         
     def apply_pruning(self, ratio=0.3):
-        for name, module in self.model.features.named_modules():
+        # pruning and replace all mask to 0.
+        for _, module in self.model.features.named_modules():
             if isinstance(module, (layer.Conv2d, nn.Conv2d, layer.Linear, nn.Linear)):
                 prune.l1_unstructured(module, name='weight', amount=ratio)
 
-    def remove_pruning(self):
-        for name, module in self.model.features.named_modules():
+    # def remove_pruning(self):
+        for _, module in self.model.features.named_modules():
             if isinstance(module, (layer.Conv2d, nn.Conv2d, layer.Linear, nn.Linear)):
                 try:
                     prune.remove(module, 'weight')

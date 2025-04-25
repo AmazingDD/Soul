@@ -1,9 +1,7 @@
 import os
-import time
 import random
 import argparse
 import numpy as np
-import torch.utils
 from tqdm import tqdm
 
 import torch
@@ -11,30 +9,31 @@ import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 
-from vgg import SpikingVGG9
-from sparse import PruningNetworkManager
-
-model_map = {
-    "SpikingVGG9": SpikingVGG9,
-    # "SewResNet18": SewResNet18
-}
+from model.vgg import SpikingVGG9
+from model.resnet import SewResNet18
+from pruner import *
 
 def ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Structured pruning')
+    parser = argparse.ArgumentParser(description='Pruning')
     parser.add_argument('-seed', default=42, type=int)
+    parser.add_argument('-dataset', default='CIFAR10', help='model')
     parser.add_argument('-data_dir', default='/home/yudi/data/cifar10/', help='dataset path')
     parser.add_argument('-model', default='SpikingVGG9', help='model')
     parser.add_argument('-gpu', default=0, help='device')
     parser.add_argument('-b', '--batch-size', default=128, type=int)
-    parser.add_argument('-epochs', default=100, type=int, metavar='N', help='number of total epochs')
+    parser.add_argument('-epochs', default=70, type=int, metavar='N', help='number of total epochs')
+    parser.add_argument('-ft_epochs', default=5, type=int, metavar='N', help='number of total epochs')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('-output_dir', default='./saved_models/', help='path where to save')
     parser.add_argument('-T', default=4, type=int, help='simulation steps')
+    # pruning options
+    parser.add_argument('-thr', '--threshold', default=0.4, type=float, help='sparsity ratio')
+    parser.add_argument('-target', '--granularity', default='weight', help='[optional] weight, channel')
 
     args = parser.parse_args()
 
@@ -79,6 +78,26 @@ def load_data(dataset_dir, dataset_type, T):
 
     return train_dataset, test_dataset, input_shape, num_classes
 
+def testing(model, test_loader, criterion, device):
+    model.eval()
+    test_loss, test_acc = 0., 0.
+    test_samples = 0
+    with torch.no_grad():
+        for image, target in test_loader:
+            image, target = image.to(device), target.to(device)
+
+            output = model(image)
+            loss = criterion(output, target)
+
+            test_loss += loss.item() * target.numel()
+            test_samples += target.numel()
+            test_acc += (output.argmax(1) == target).float().sum().item()
+
+    test_loss /= test_samples
+    test_acc /= test_samples
+
+    return test_acc * 100, test_loss
+
 if __name__ == '__main__':
     args = parse_args()
     print(args)
@@ -90,9 +109,8 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    max_test_acc1 = 0.
-    output_dir = os.path.join(args.output_dir, f'{args.model}_T{args.T}')
-    ensure_dir(output_dir)
+    ensure_dir(os.path.join(args.output_dir, 'raw'))
+    ensure_dir(os.path.join(args.output_dir, f'{args.granularity}_sparse'))
 
     if torch.cuda.is_available():
         device = f'cuda:{args.gpu}'
@@ -114,73 +132,98 @@ if __name__ == '__main__':
         shuffle=False, 
         num_workers=args.workers,
         pin_memory=True)
+    
+    model_map = {
+        'spikingvgg9': SpikingVGG9,
+        'sewresnet18': SewResNet18, 
+    }
 
-    print('Creating model')
-    model = SpikingVGG9()
-    model.to(device)
+    pruner_map = {
+        'weight': UnstructuredPruner,
+        'channel': StructuredPruner
+    }
 
-    manager = PruningNetworkManager(model)
+    # training
+    print('Start training')
+    pruner = pruner_map[args.granularity.lower()](
+        model_map[args.model.lower()](input_shape, args.T, num_classes), device)
+    model = pruner.get_model()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
-    print("Start training")
+    print("Building Initial Model")
 
+    max_test_acc = 0.
     for epoch in range(args.epochs):
-        # training
-        manager.training()
         train_acc, train_loss = 0., 0.
         train_samples = 0
-        # train_one_epoch(model, mymanager,criterion, optimizer, train_loader, device, epoch)
         model.train()
         for image, target in tqdm(train_loader, unit='batch', ncols=80):
             optimizer.zero_grad()
             image, target = image.to(device), target.to(device)
+            output = model(image)
+                
+            loss = criterion(output, target)
+
+            loss.backward()
+            optimizer.step()
+
+            train_samples += target.numel()
+            train_loss += loss.item() * target.numel()
+            train_acc += (output.argmax(1) == target).float().sum().item()
+
+        lr_scheduler.step()
+
+        train_loss /= train_samples
+        train_acc /= train_samples
+
+        test_acc, test_loss = testing(model, test_loader, criterion, device)
+
+        print(f'Epoch [{epoch + 1}/{args.epochs}] Train Loss: {train_loss:.2f} Train Acc.: {train_acc * 100:.2f}% Test Loss: {test_loss:.2f} Test Acc.: {test_acc:.2f}%')
+
+        if test_acc > max_test_acc:
+            max_test_acc = test_acc
+            torch.save(model.state_dict(), f'./{args.output_dir}/raw/best_{args.model}_{args.dataset}_T{args.T}.pth')
+
+    # pruning
+    model.load_state_dict(
+        torch.load(f'./{args.output_dir}/raw/best_{args.model}_{args.dataset}_T{args.T}.pth', map_location='cpu'))
+    model.to(device)
+
+    test_acc, _ = testing(model, test_loader, criterion, device)
+    print(f'Before pruning, Test Acc. {test_acc:.2f}%')
+
+    pruner.apply_pruning(args.threshold)
+
+    test_acc, _ = testing(model, test_loader, criterion, device)
+    print(f'After pruning, Test Acc. {test_acc:.2f}%')
+
+    # fine-tuning
+    print('Finetuning model')
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    pruner.freeze()
+    model.train()
+    max_test_acc = 0.
+    for epoch in range(args.ft_epochs):
+        for image, target in tqdm(train_loader, unit='batch', ncols=50):
+            optimizer.zero_grad()
+            image, target = image.to(device), target.to(device)
+
             output = model(image)
             loss = criterion(output, target)
 
             loss.backward()
             optimizer.step()
 
-            # manager.do_masks()
+        test_acc, test_loss = testing(model, test_loader, criterion, device)
 
-            train_samples += target.numel()
-            train_loss += loss.item() * target.numel()
-            train_acc += (output.argmax(1) == target).float().sum().item()
+        if test_acc > max_test_acc:
+            max_test_acc = test_acc
+            torch.save(model.state_dict(), f'./{args.output_dir}/{args.granularity}_sparse/best_sparse_{args.model}_{args.dataset}_T{args.T}_thr{args.threshold}.pth')
 
-        manager.update_masks(model, 0.8, 0.1)
+        print(f'Fine-Tune Epoch [{epoch + 1}/{args.ft_epochs}] Test Loss: {test_loss:.2f} Test Acc.: {test_acc:.2f}% Best Test Acc.: {max_test_acc:.2f}%')
 
-        train_loss /= train_samples
-        train_acc /= train_samples * 100
-
-        lr_scheduler.step()
-
-        # evaluation
-        manager.evaling()
-        test_loss, test_acc = 0., 0.
-        test_samples = 0
-        model.eval()
-        with torch.no_grad():
-            for image, target in test_loader:
-                image, target = image.to(device), target.to(device)
-
-                output = model(image)
-                loss = criterion(output, target)
-
-                test_loss += loss.item() * target.numel()
-                test_samples += target.numel()
-                test_acc += (output.argmax(1) == target).float().sum().item()
-        
-        test_loss /= test_samples
-        test_acc /= test_samples * 100
-
-        print(f'Epoch [{epoch + 1}/{args.epochs}] Train Loss: {train_loss:.2f} Train Acc.: {train_acc:.2f}% Test Loss: {test_loss:.2f} Test Acc.: {test_acc:.2f}%')
-
-        
-        manager.do_masks(model)
-        manager.compute_prune()
-        manager.reset_zeros()
-
-
-    
+    print('All Done!')
