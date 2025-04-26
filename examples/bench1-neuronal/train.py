@@ -127,8 +127,8 @@ def train(args):
     criterion = nn.CrossEntropyLoss()
 
     epochs = args.epochs
-    # optimizer = optim.SGD(model.parameters(), lr=1e-1, momentum=0.9, weight_decay=5e-4)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.SGD(model.parameters(), lr=1e-1, momentum=0.9, weight_decay=5e-4)
+    # optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     best_acc = 0.0  # 用于保存当前最佳准确率

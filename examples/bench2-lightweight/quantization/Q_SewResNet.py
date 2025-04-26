@@ -1,16 +1,9 @@
 from spikingjelly.activation_based import layer, functional, neuron, surrogate
 import torch
 import torch.nn as nn
-from .CLIF import MultiStepCLIFNeuron
-from .GLIF import GatedLIFNode
-from .ILIF import ILIF
 
 neuron_map = {
     "LIF": neuron.LIFNode,
-    "PLIF": neuron.ParametricLIFNode,
-    "CLIF": MultiStepCLIFNeuron,
-    "GLIF": GatedLIFNode,
-    "ILIF": ILIF
 }
 
 def _get_neuron_layer(neuron_type, T=4, v_threshold=1.0):
@@ -189,3 +182,4 @@ class SEWResNet18(nn.Module):
         x = x.transpose(0, 1) # [T, B, C, H, W]
         # print("input shape: ", x.shape)
         return self._forward_impl(x)
+    
