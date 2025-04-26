@@ -10,13 +10,13 @@ class Aggregated_Spiking_Layer(nn.Module):
     def __init__(self, conv_layer, bn_layer, lif_layer, layer_id):
         super().__init__()
         self._layer = conv_layer
-        self.bn = bn_layer
+        self._norm = bn_layer
         self._neuron_model = lif_layer
         self.id = layer_id  # 记录唯一的ID
 
     def forward(self, x):
         x = self._layer(x)
-        x = self.bn(x)
+        x = self._norm(x)
         x = self._neuron_model(x)
         return x
 
@@ -53,8 +53,8 @@ class Symmetric_Quantize:
     
     def __call__(self, module):
         if not isinstance(module, Aggregated_Spiking_Layer):
-            print(module)
-            print('Not Aggregated Spiking Layer')
+            # print(module)
+            # print('Not Aggregated Spiking Layer')
             return
         if module._layer is not None and isinstance(module._layer,torch.nn.Conv2d):
             _weight = module._layer.weight.data
@@ -68,14 +68,15 @@ class Symmetric_Quantize:
             # assert isinstance(module._neuron_model, D3LIF)
             _bias = module._layer.bias.data
             self._bias = _bias
-            module._layer.bias.data = torch.zeros_like(_bias)
+            # module._layer.bias.data = torch.zeros_like(_bias)
             self._scale_factor = _scale_factor
+            module._layer.bias.data = torch.round(self._bias * self._scale_factor)
         
         if module._neuron_model is not None:
             _new_bias = torch.round(self._bias * self._scale_factor)
-            _new_vth = torch.round(module._neuron_model.v * self._scale_factor)
+            _new_vth = torch.round(module._neuron_model.v_threshold * self._scale_factor)
             _new_neuron = D3LIF_Quant(
-                id=module._neuron_model.id,
+                id=0,
                 vth_base=_new_vth[None, :, None, None],
                 tau=module._neuron_model.tau,
                 bias=_new_bias.clone(),

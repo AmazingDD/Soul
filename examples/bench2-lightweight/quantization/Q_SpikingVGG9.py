@@ -80,6 +80,7 @@ class SpikingVGG9(nn.Module):
         functional.reset_net(self)
 
     def forward(self, x):
+        functional.reset_net(self)
         # print("input.shape: ", x.shape) # [B, C, H, W], or [B, T, C, H, W]
         if len(x.shape) == 4:
             x = x.unsqueeze(1).repeat(1, self.T, 1, 1, 1) # B, T, C, H, W

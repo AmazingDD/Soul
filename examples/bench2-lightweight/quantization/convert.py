@@ -16,9 +16,12 @@ from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
 from dataset import NCaltech101, NMNIST, CIFAR10DVS, TinyImageNetDataset
-from Q_SewResNet import SEWResNet18
+from Q_SewResNet import SEWResNet18, BasicBlock
 from Q_SpikingVGG9 import SpikingVGG9
 from typing import Optional
+from fuse import fuse_rateBatchNorm_xs
+import warnings
+warnings.filterwarnings("ignore")
 
 def set_seed(seed: int):
     random.seed(seed)
@@ -58,7 +61,7 @@ def get_dataloader(dataset_name, data_dir):
     else:
         raise ValueError(f"Invalid dataset_name: {dataset_name}")
     
-    testloader = DataLoader(testset, batch_size=64, shuffle=False, num_workers=2)
+    testloader = DataLoader(testset, batch_size=16, shuffle=False, num_workers=2)
 
     return testloader
 
@@ -110,6 +113,107 @@ def aggregate_spikingvgg9_layers(original_model):
     
     return new_model
 
+def aggregate_sewresnet18_layers(original_model):
+    def replace_module(module, parent_name="", layer_id=0):
+        """
+        递归遍历模块并替换Conv-BN-LIF组合为Aggregated_Spiking_Layer
+        返回替换后的模块和当前已使用的layer_id
+        """
+        new_module = module
+        # 遍历子模块
+        for name, child in module.named_children():
+            # 递归处理子模块
+            replaced_child, layer_id = replace_module(child, f"{parent_name}.{name}", layer_id)
+            setattr(module, name, replaced_child)
+        
+        # 当前模块为BasicBlock时的特殊处理
+        if isinstance(module, BasicBlock):
+            new_block = copy.deepcopy(module)
+            # 处理第一个Conv-BN-LIF组合
+            conv1 = module.conv1
+            bn1 = module.bn1
+            sn1 = module.sn1
+            aggregated1 = Aggregated_Spiking_Layer(
+                copy.deepcopy(conv1), 
+                copy.deepcopy(bn1), 
+                copy.deepcopy(sn1),
+                layer_id=layer_id
+            )
+            layer_id += 1
+            new_block.conv1 = aggregated1._layer
+            new_block.bn1 = aggregated1._norm
+            new_block.sn1 = aggregated1._neuron_model
+            # 必须保留聚合层引用，否则参数会丢失
+            new_block.aggregated1 = aggregated1
+            
+            # 处理第二个Conv-BN-LIF组合
+            conv2 = module.conv2
+            bn2 = module.bn2
+            sn2 = module.sn2
+            aggregated2 = Aggregated_Spiking_Layer(
+                copy.deepcopy(conv2), 
+                copy.deepcopy(bn2), 
+                copy.deepcopy(sn2),
+                layer_id=layer_id
+            )
+            layer_id += 1
+            new_block.conv2 = aggregated2._layer
+            new_block.bn2 = aggregated2._norm
+            new_block.sn2 = aggregated2._neuron_model
+            new_block.aggregated2 = aggregated2
+            
+            # 处理downsample路径
+            if module.downsample is not None:
+                # downsample路径包含Conv-BN
+                downsample_conv = module.downsample[0]
+                downsample_bn = module.downsample[1]
+                downsample_sn = module.downsample_sn
+                aggregated_down = Aggregated_Spiking_Layer(
+                    copy.deepcopy(downsample_conv),
+                    copy.deepcopy(downsample_bn),
+                    copy.deepcopy(downsample_sn),
+                    layer_id=layer_id
+                )
+                layer_id += 1
+                # 替换downsample为聚合层
+                new_block.downsample = aggregated_down
+                new_block.downsample_sn = nn.Identity()  # 占位符
+                
+            return new_block, layer_id
+        
+        # 处理Sequential中的Conv-BN-LIF组合（例如输入层的conv1-bn1-sn1）
+        if isinstance(module, nn.Sequential):
+            new_layers = []
+            i = 0
+            while i < len(module):
+                layer_ = module[i]
+                # 检查连续三个层是否为Conv-BN-LIF
+                if (i + 2 < len(module) and 
+                    isinstance(layer_, layer.Conv2d) and 
+                    isinstance(module[i+1], layer.BatchNorm2d) and 
+                    isinstance(module[i+2], neuron.LIFNode)):
+                    # 创建聚合层
+                    aggregated = Aggregated_Spiking_Layer(
+                        copy.deepcopy(layer_),
+                        copy.deepcopy(module[i+1]),
+                        copy.deepcopy(module[i+2]),
+                        layer_id=layer_id
+                    )
+                    layer_id += 1
+                    new_layers.append(aggregated)
+                    i += 3
+                else:
+                    new_layers.append(copy.deepcopy(layer_))
+                    i += 1
+            return nn.Sequential(*new_layers), layer_id
+        
+        return module, layer_id
+    """主转换函数"""
+    new_model = copy.deepcopy(original_model)
+    # 递归替换所有模块
+    replaced_model, _ = replace_module(new_model)
+    return replaced_model
+
 def test(args, model, testloader):
     model.eval()
     correct = 0
@@ -121,7 +225,7 @@ def test(args, model, testloader):
             _, predicted = torch.max(logit.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            functional.reset_net(model)
+            # functional.reset_net(model)
 
     acc = 100 * correct / total
     print(f'Accuracy on the {args.dataset} test images: {acc:.2f}%')
@@ -129,10 +233,10 @@ def test(args, model, testloader):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", type=str, default="../../bench1-neuronal/data/CIFAR10")
+    parser.add_argument("--data_dir", type=str, default="../../bench1-neuronal/data/DVSGesture")
     parser.add_argument("--weight_dir", type=str, default="./saved_models")
-    parser.add_argument("--model_type", type=str, default="SpikingVGG9")
-    parser.add_argument("--dataset", type=str, default="CIFAR10")
+    parser.add_argument("--model_type", type=str, default="SEWResNet18")
+    parser.add_argument("--dataset", type=str, default="DVSGesture")
     parser.add_argument("--seed", type=int, default=42) # 41, 42 , 43
     parser.add_argument("--neuron_type", type=str, default="LIF")
     args = parser.parse_args()
@@ -164,8 +268,13 @@ if __name__ == "__main__":
     
     print("Before Quantization")
     test(args, model=original_model, testloader=testloader)
-
-    new_model = aggregate_spikingvgg9_layers(original_model)
+    
+    if args.model_type == "SpikingVGG9":
+        new_model = aggregate_spikingvgg9_layers(original_model)
+    elif args.model_type == "SEWResNet18":
+        new_model = aggregate_sewresnet18_layers(original_model)
+    else:
+        raise NotImplementedError(f'{args.model_type} is not supported.')
     
     # # 验证参数一致性
     # with torch.no_grad():
@@ -173,14 +282,12 @@ if __name__ == "__main__":
     #         print(f"Layer {n1} params match: {torch.allclose(p1, p2)}")
     print(new_model)
     
-    # 已转换成功，TODO Need Debug
-    new_model.features.apply(Symmetric_Quantize(Symmetric_Quantize.Target_Precision.INT8))
-    weights = new_model.state_dict()
-    
-    for name, module in new_model.named_modules():
-        if isinstance(module, D3LIF_Quant): # mem_update
-            weights[f'{name}.v'] = module.v
-            weights[f'{name}.bias'] = module.bias
+    new_model.apply(fuse_rateBatchNorm_xs)
+    new_model.apply(Symmetric_Quantize(Symmetric_Quantize.Target_Precision.INT8))
 
     print("After Quantization")
     test(args, model=new_model, testloader=testloader)
+    
+    torch.save(new_model.state_dict(), os.path.join( \
+        args.weight_dir, f'quantized_best_{args.model_type}_{args.neuron_type}_{args.dataset}_{args.seed}.pth'))
+    

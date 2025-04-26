@@ -54,7 +54,7 @@ class D3LIF(torch.nn.Module):
         self.state_hooks=[]
 
     def reset(self):
-        self.U=None
+        self.U=0
     
     def forward(self,input):
 
@@ -106,14 +106,22 @@ class D3LIF_Quant(D3LIF):
             return self.forward_impl(input)
         
     def forward_impl(self, input:torch.Tensor):
-        with torch.no_grad():
-            _orignal_type=input.dtype
-            input = input.short() + self.bias.short()
-            if(self.U is None):
-                PSP=input
-            else:
-                PSP=self.U + input
-            o=torch.gt(PSP,self.vth).type(_orignal_type)
-            self.U = torch.floor((1-o) * PSP.float() * self.tau).short()
-            self.U = torch.clamp_min(self.U, - self.vth)
-            return o
+        # 模拟 多步 LIF inference行为
+        spike_seq = torch.zeros_like(input)
+        for t in range(input.shape[0]):
+            self.U = self.U + (input[t] - (self.U - 0.0)) / self.tau
+            spike = (self.U >= self.vth).to(input[t])
+            self.U = (1. - spike) * self.U
+            spike_seq[t] = spike
+        return spike_seq
+        # with torch.no_grad():
+        #     _orignal_type=input.dtype
+        #     input = input.short() + self.bias.short()
+        #     if(self.U is None):
+        #         PSP=input
+        #     else:
+        #         PSP=self.U + input
+        #     o=torch.gt(PSP,self.vth).type(_orignal_type)
+        #     self.U = torch.floor((1-o) * PSP.float() * self.tau).short()
+        #     self.U = torch.clamp_min(self.U, - self.vth)
+        #     return o

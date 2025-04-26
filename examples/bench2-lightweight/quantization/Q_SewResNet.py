@@ -177,6 +177,7 @@ class SEWResNet18(nn.Module):
         return x
 
     def forward(self, x):
+        functional.reset_net(self)
         if len(x.shape) == 4:
             x = x.unsqueeze(1).repeat(1, self.T, 1, 1, 1) # B, T, C, H, W
         x = x.transpose(0, 1) # [T, B, C, H, W]
