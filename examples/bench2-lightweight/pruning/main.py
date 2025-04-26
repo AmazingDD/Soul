@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('-gpu', default=0, help='device')
     parser.add_argument('-b', '--batch-size', default=128, type=int)
     parser.add_argument('-epochs', default=70, type=int, metavar='N', help='number of total epochs')
-    parser.add_argument('-ft_epochs', default=5, type=int, metavar='N', help='number of total epochs')
+    parser.add_argument('-ft_epochs', default=10, type=int, metavar='N', help='number of total epochs')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('-output_dir', default='./saved_models/', help='path where to save')
