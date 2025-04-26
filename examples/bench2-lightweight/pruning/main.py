@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('-gpu', default=0, help='device')
     parser.add_argument('-b', '--batch-size', default=128, type=int)
     parser.add_argument('-epochs', default=70, type=int, metavar='N', help='number of total epochs')
-    parser.add_argument('-ft_epochs', default=10, type=int, metavar='N', help='number of total epochs')
+    parser.add_argument('-ft_epochs', default=20, type=int, metavar='N', help='number of total epochs')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('-output_dir', default='./saved_models/', help='path where to save')
@@ -66,13 +66,16 @@ def load_data(dataset_dir, dataset_type, T):
         input_shape = (3, 32, 32)
         num_classes = 10
 
-    elif dataset_type == 'DVSGesture':
-        from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
-        train_dataset = DVS128Gesture(dataset_dir, train=True, data_type='frame', frames_number=T, split_by='number')
-        test_dataset = DVS128Gesture(dataset_dir, train=False, data_type='frame', frames_number=T, split_by='number')
+    elif dataset_type == 'CIFAR10DVS':
+        from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
+        from spikingjelly.datasets import split_to_train_test_set
+
+        dataset = CIFAR10DVS(dataset_dir, data_type='frame', frames_number=T, split_by='number')
+        train_dataset, test_dataset = split_to_train_test_set(0.9, dataset, 10)
+        del dataset
 
         input_shape = (2, 128, 128)
-        num_classes = 11
+        num_classes = 10
     else:
         raise ValueError(dataset_type)
 
@@ -145,9 +148,8 @@ if __name__ == '__main__':
 
     # training
     print('Start training')
-    pruner = pruner_map[args.granularity.lower()](
-        model_map[args.model.lower()](input_shape, args.T, num_classes), device)
-    model = pruner.get_model()
+    model = model_map[args.model.lower()](input_shape, args.T, num_classes)
+    model.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
@@ -191,10 +193,11 @@ if __name__ == '__main__':
     model.load_state_dict(
         torch.load(f'./{args.output_dir}/raw/best_{args.model}_{args.dataset}_T{args.T}.pth', map_location='cpu'))
     model.to(device)
-
+    
     test_acc, _ = testing(model, test_loader, criterion, device)
     print(f'Before pruning, Test Acc. {test_acc:.2f}%')
 
+    pruner = pruner_map[args.granularity.lower()](model, device)
     pruner.apply_pruning(args.threshold)
 
     test_acc, _ = testing(model, test_loader, criterion, device)
@@ -222,8 +225,10 @@ if __name__ == '__main__':
 
         if test_acc > max_test_acc:
             max_test_acc = test_acc
-            torch.save(model.state_dict(), f'./{args.output_dir}/{args.granularity}_sparse/best_sparse_{args.model}_{args.dataset}_T{args.T}_thr{args.threshold}.pth')
+            torch.save(model.state_dict(), f'./{args.output_dir}/{args.granularity}_sparse/best_sparse_weight_{args.model}_{args.dataset}_T{args.T}_thr{args.threshold}.pth')
+            torch.save(model, f'./{args.output_dir}/{args.granularity}_sparse/best_sparse_model_{args.model}_{args.dataset}_T{args.T}_thr{args.threshold}.pth')
 
         print(f'Fine-Tune Epoch [{epoch + 1}/{args.ft_epochs}] Test Loss: {test_loss:.2f} Test Acc.: {test_acc:.2f}% Best Test Acc.: {max_test_acc:.2f}%')
 
     print('All Done!')
+
