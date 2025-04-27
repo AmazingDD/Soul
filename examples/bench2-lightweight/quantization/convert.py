@@ -15,7 +15,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
-from dataset import NCaltech101, NMNIST, CIFAR10DVS, TinyImageNetDataset
+from dataset import TinyImageNetDataset, split_to_train_test_set
+from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
 from Q_SewResNet import SEWResNet18, BasicBlock
 from Q_SpikingVGG9 import SpikingVGG9
 from typing import Optional
@@ -48,6 +49,9 @@ def get_dataloader(dataset_name, data_dir):
             transforms.Normalize((0.4914, 0.4822, 0.4465),(0.2023, 0.1994, 0.2010))
         ])
         testset = torchvision.datasets.CIFAR10(root=data_dir, train=False, transform=cifar10_transform, download=True)
+    elif dataset_name == "CIFAR10DVS":
+        c_dataset = CIFAR10DVS(root=data_dir, data_type='frame', frames_number=16, split_by='number')
+        trainset, testset = split_to_train_test_set(0.9, c_dataset, 10)
     elif dataset_name == "TinyImageNet":
         tinyimagenet_transform = transforms.Compose([
             transforms.Resize((64, 64), interpolation=transforms.InterpolationMode.BICUBIC),
@@ -233,10 +237,10 @@ def test(args, model, testloader):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", type=str, default="../../bench1-neuronal/data/DVSGesture")
+    parser.add_argument("--data_dir", type=str, default="../../bench1-neuronal/data/TinyImageNet")
     parser.add_argument("--weight_dir", type=str, default="./saved_models")
-    parser.add_argument("--model_type", type=str, default="SEWResNet18")
-    parser.add_argument("--dataset", type=str, default="DVSGesture")
+    parser.add_argument("--model_type", type=str, default="SpikingVGG9")
+    parser.add_argument("--dataset", type=str, default="TinyImageNet")
     parser.add_argument("--seed", type=int, default=42) # 41, 42 , 43
     parser.add_argument("--neuron_type", type=str, default="LIF")
     args = parser.parse_args()
@@ -248,6 +252,10 @@ if __name__ == "__main__":
         input_shape = (3, 32, 32)
         num_classes = 10
         T = 4
+    elif args.dataset == "CIFAR10DVS":
+        input_shape = (2, 128, 128)
+        num_classes = 10
+        T = 16
     elif args.dataset == "TinyImageNet":
         input_shape = (3, 64, 64)
         num_classes = 200
@@ -272,7 +280,11 @@ if __name__ == "__main__":
     if args.model_type == "SpikingVGG9":
         new_model = aggregate_spikingvgg9_layers(original_model)
     elif args.model_type == "SEWResNet18":
-        new_model = aggregate_sewresnet18_layers(original_model)
+        new_model = copy.deepcopy(original_model)
+        new_model.layer1 = aggregate_sewresnet18_layers(original_model.layer1)
+        new_model.layer2 = aggregate_sewresnet18_layers(original_model.layer2)
+        new_model.layer3 = aggregate_sewresnet18_layers(original_model.layer3)
+        new_model.layer4 = aggregate_sewresnet18_layers(original_model.layer4)
     else:
         raise NotImplementedError(f'{args.model_type} is not supported.')
     
