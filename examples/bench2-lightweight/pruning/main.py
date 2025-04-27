@@ -130,7 +130,7 @@ if __name__ == '__main__':
         pin_memory=True, 
         drop_last=True)
     test_loader = torch.utils.data.DataLoader(
-        train_dataset, 
+        test_dataset, 
         batch_size=args.batch_size, 
         shuffle=False, 
         num_workers=args.workers,
@@ -208,9 +208,9 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     pruner.freeze()
-    model.train()
     max_test_acc = 0.
     for epoch in range(args.ft_epochs):
+        model.train()
         for image, target in tqdm(train_loader, unit='batch', ncols=50):
             optimizer.zero_grad()
             image, target = image.to(device), target.to(device)
