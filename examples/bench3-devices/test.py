@@ -19,18 +19,18 @@ if args.dataset == 'CIFAR10':
 elif args.dataset == 'CIFAR10DVS':
     num_classes = 10
     T = 10
-    input_shape = (2, 128, 128)
-    sample_name = 'cifar10dvs-T10-size128.pt'
+    input_shape = (2, 64, 64)
+    sample_name = 'cifar10dvs-T10-size64.pt'
 elif args.dataset == 'DVSGesture':
     num_classes = 11
     T = 16
-    input_shape = (2, 128, 128)
-    sample_name = 'cifar10-T16-size128.pt'
+    input_shape = (2, 64, 64)
+    sample_name = 'cifar10-T16-size64.pt'
 elif args.dataset == 'TinyImageNet':
     num_classes = 200
     T = 4
-    input_shape = (3, 224, 224)
-    sample_name = 'imagenet-T4-size224.pt'
+    input_shape = (3, 64, 64)
+    sample_name = 'imagenet-T4-size64.pt'
 else:
     raise ValueError(f'Invalid dataset: {args.dataset}')
 

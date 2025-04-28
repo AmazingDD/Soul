@@ -14,6 +14,29 @@ from torchvision import transforms
 
 from sew_resnet import SewResNet18
 
+class DatasetWarpper(torch.utils.data.Dataset):
+    def __init__(self, dataset, transform):
+        self.dataset = dataset
+        self.trasnform = transform
+
+    def __getitem__(self, index):
+        return self.trasnform(self.dataset[index][0]), self.dataset[index][1]
+
+    def __len__(self):
+        return len(self.dataset)
+    
+class DVStransform:
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, img):
+        img = torch.from_numpy(img).float()
+        shape = [img.shape[0], img.shape[1]]
+        img = img.flatten(0, 1)
+        img = self.transform(img)
+        shape.extend(img.shape[1:])
+        return img.view(shape)
+
 def ensure_dir(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -92,7 +115,7 @@ def load_data(dataset_dir, dataset_type, T):
 
     elif dataset_type == 'TinyImageNet':
         tinyimagenet_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((64, 64)), # (224, 224) 
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
@@ -103,32 +126,43 @@ def load_data(dataset_dir, dataset_type, T):
         train_dataset = TinyImageNetDataset(dataset_dir, train=True, transform=tinyimagenet_transform)
         test_dataset = TinyImageNetDataset(dataset_dir, train=False, transform=tinyimagenet_transform)
 
-        input_shape = (3, 224, 224)
+        input_shape = (3, 64, 64)
         num_classes = 200
 
     elif dataset_type == 'DVSGesture':
         from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
-        transform_train, transform_test = None, None
+        transform_train = DVStransform(transform=transforms.Compose([transforms.Resize(size=(64, 64), antialias=True)]))
+        transform_test = DVStransform(transform=transforms.Resize(size=(64, 64), antialias=True))
 
         train_dataset = DVS128Gesture(dataset_dir, train=True, data_type='frame', frames_number=T, split_by='number')
         test_dataset = DVS128Gesture(dataset_dir, train=False, data_type='frame', frames_number=T, split_by='number')
 
-        input_shape = (2, 128, 128)
+        train_dataset = DatasetWarpper(train_dataset, transform_train)
+        test_dataset = DatasetWarpper(test_dataset, transform_test)
+
+        input_shape = (2, 64, 64)
         num_classes = 11
 
     elif dataset_type == 'CIFAR10DVS':
         from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
         from spikingjelly.datasets import split_to_train_test_set
 
+        transform_train = DVStransform(transform=transforms.Compose([transforms.Resize(size=(64, 64), antialias=True)]))
+        transform_test = DVStransform(transform=transforms.Resize(size=(64, 64), antialias=True))
+
         dataset = CIFAR10DVS(dataset_dir, data_type='frame', frames_number=T, split_by='number')
         train_dataset, test_dataset = split_to_train_test_set(0.9, dataset, 10)
         del dataset
 
-        input_shape = (2, 128, 128)
+        train_dataset = DatasetWarpper(train_dataset, transform_train)
+        test_dataset = DatasetWarpper(test_dataset, transform_test)
+
+        input_shape = (2, 64, 64)
         num_classes = 10
 
     else:
         raise ValueError(dataset_type)
+
 
     return train_dataset, test_dataset, input_shape, num_classes
 

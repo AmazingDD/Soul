@@ -14,8 +14,28 @@ torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-if not os.path.exists('./samples/'):
-    os.makedirs('./samples/')
+class DatasetWarpper(torch.utils.data.Dataset):
+    def __init__(self, dataset, transform):
+        self.dataset = dataset
+        self.trasnform = transform
+
+    def __getitem__(self, index):
+        return self.trasnform(self.dataset[index][0]), self.dataset[index][1]
+
+    def __len__(self):
+        return len(self.dataset)
+    
+class DVStransform:
+    def __init__(self, transform):
+        self.transform = transform
+
+    def __call__(self, img):
+        img = torch.from_numpy(img).float()
+        shape = [img.shape[0], img.shape[1]]
+        img = img.flatten(0, 1)
+        img = self.transform(img)
+        shape.extend(img.shape[1:])
+        return img.view(shape)
 
 # cifar10 (3,32,32)
 transform_test = transforms.Compose([
@@ -71,18 +91,21 @@ for size in [224, 64]:
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
 test_dataset = DVS128Gesture('/home/yudi/data/dvs128gesture/', train=False, data_type='frame', frames_number=16, split_by='number')
 
-data_loader_test = torch.utils.data.DataLoader(
-    test_dataset, 
-    batch_size=10,
-    shuffle=True,
-    num_workers=4,
-    pin_memory=True, 
-    drop_last=False)
+for size in [128, 64]:
+    transform_test = DVStransform(transform=transforms.Resize(size=(size, size), antialias=True))
+    tmp_test_dataset = DatasetWarpper(test_dataset, transform_test)
 
-sample = next(iter(data_loader_test))[0] # (B, T, C, H, W)
-print('DVSGesture:', sample.shape)
-torch.save(sample, f'dvsgesture-T16-size128.pt')
+    data_loader_test = torch.utils.data.DataLoader(
+        tmp_test_dataset, 
+        batch_size=10,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True, 
+        drop_last=False)
 
+    sample = next(iter(data_loader_test))[0] # (B, T, C, H, W)
+    print('DVSGesture:', sample.shape)
+    torch.save(sample, f'dvsgesture-T16-size{size}.pt')
 
 # cifar10dvs (10, 2, 128, 128)
 from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
@@ -91,14 +114,18 @@ from spikingjelly.datasets import split_to_train_test_set
 dataset = CIFAR10DVS('/home/yudi/data/cifar10_dvs/', data_type='frame', frames_number=10, split_by='number')
 _, test_dataset = split_to_train_test_set(0.9, dataset, 10)
 
-data_loader_test = torch.utils.data.DataLoader(
-    test_dataset, 
-    batch_size=10,
-    shuffle=True,
-    num_workers=4,
-    pin_memory=True, 
-    drop_last=False)
+for size in [128, 64]:
+    transform_test = DVStransform(transform=transforms.Resize(size=(size, size), antialias=True))
+    tmp_test_dataset = DatasetWarpper(test_dataset, transform_test)
 
-sample = next(iter(data_loader_test))[0] # (B, T, C, H, W)
-print('CIFAR10DVS:', sample.shape)
-torch.save(sample, f'cifar10dvs-T10-size128.pt')
+    data_loader_test = torch.utils.data.DataLoader(
+        tmp_test_dataset, 
+        batch_size=10,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True, 
+        drop_last=False)
+
+    sample = next(iter(data_loader_test))[0] # (B, T, C, H, W)
+    print('CIFAR10DVS:', sample.shape)
+    torch.save(sample, f'cifar10dvs-T10-size{size}.pt')
