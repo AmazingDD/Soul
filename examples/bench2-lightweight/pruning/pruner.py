@@ -192,7 +192,7 @@ class StructuredPruner(object):
         # 为每个通道生成保留 mask（按顺序）
         masks = []
         for bn_w in bn_weights:
-            masks.append(bn_w.ge(threshold).float())
+            masks.append(bn_w.gt(threshold).float())
 
         # 构造新的通道配置
         new_features = []
