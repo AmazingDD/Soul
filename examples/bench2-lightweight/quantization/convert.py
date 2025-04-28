@@ -300,6 +300,9 @@ if __name__ == "__main__":
     print("After Quantization")
     test(args, model=new_model, testloader=testloader)
     
-    torch.save(new_model.state_dict(), os.path.join( \
+    weights = new_model.state_dict()
+    for k,v in weights.items():
+        weights[k] = v.to(torch.int8)  # should be consistent with quantizer
+    torch.save(weights, os.path.join( \
         args.weight_dir, f'quantized_best_{args.model_type}_{args.neuron_type}_{args.dataset}_{args.seed}.pth'))
     
