@@ -109,13 +109,13 @@ class SewResNet18(nn.Module):
                                        dilate=replace_stride_with_dilation[2], connect_f=connect_f)
         self.avgpool = layer.SeqToANNContainer(nn.AdaptiveAvgPool2d((1, 1)))
 
-        if num_classes * 10 < 512 * block.expansion:
-            self.fc = nn.Sequential(
-                nn.Linear(512 * block.expansion, num_classes * 10),
-                nn.AvgPool1d(10, 10)
-            )
-        else:
-            self.fc = nn.Linear(512 * block.expansion, num_classes)
+        # if num_classes * 10 < 512 * block.expansion:
+        #     self.fc = nn.Sequential(
+        #         nn.Linear(512 * block.expansion, num_classes * 10),
+        #         nn.AvgPool1d(10, 10)
+        #     )
+        # else:
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         if zero_init_residual:
             zero_init_blocks(self, connect_f)
