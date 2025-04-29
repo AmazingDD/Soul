@@ -9,7 +9,6 @@ parser.add_argument('-seed', default=42, type=int)
 parser.add_argument('-model_dir', type=str, default='./saved_models/', help='root dir for saving trained model')
 parser.add_argument('-dataset', default='CIFAR10', help='dataset name')
 parser.add_argument('-model', default='SpikingVGG9', help='model name')
-parser.add_argument('-gpu', action='store_true', help='use gpu?')
 args = parser.parse_args()
 
 if args.dataset == 'CIFAR10':
@@ -35,12 +34,12 @@ elif args.dataset == 'TinyImageNet':
 else:
     raise ValueError(f'Invalid dataset: {args.dataset}')
 
-if torch.cuda.is_available() and args.gpu:
+if torch.cuda.is_available():
     device = 'cuda'
 else:
     device = 'cpu'
 
-test_samples = torch.load(f'./samples/{sample_name}')
+test_samples = torch.load(f'../samples/{sample_name}')
 test_samples = test_samples.to(device)
 
 model = SewResNet18(num_classes=num_classes, T=T, input_shape=input_shape)
