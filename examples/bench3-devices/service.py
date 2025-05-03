@@ -1,12 +1,32 @@
 import torch
 import argparse
 from flask import Flask, request, jsonify
+import time
 
 from sew_resnet import SewResNet18
 
 app = Flask(__name__)
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+class BandwidthLimiter:
+    def __init__(self, app, max_bandwidth):
+        self.app = app
+        self.max_bandwidth = max_bandwidth  # 最大带宽（字节/秒）
+    
+    def __call__(self, environ, start_response):
+        # 对于上传的数据进行带宽限制
+        content_length = int(environ.get('CONTENT_LENGTH', 0))
+        if content_length > 0:
+            start_time = time.time()
+            expected_time = content_length / self.max_bandwidth
+            actual_time = time.time() - start_time
+            if actual_time < expected_time:
+                time.sleep(expected_time - actual_time)
+        
+        return self.app(environ, start_response)
+    
+app.wsgi_app = BandwidthLimiter(app.wsgi_app, max_bandwidth=1024 * 10000) # 10mbps for server bandwidth
 
 @app.route('/predict', methods=['POST'])
 def predict():
