@@ -103,7 +103,7 @@ class VGG(nn.Module):
         self.features = nn.Sequential(*layers)
 
         self.num_features = prev_chs
-        self.head_hidden_size = 1024 # 4096
+        self.head_hidden_size = 1024 if cfg in ['vgg5', 'vgg9'] else 4096 
 
         self.pre_logits = ConvMLP(
             lif,
