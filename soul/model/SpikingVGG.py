@@ -151,20 +151,20 @@ class VGG(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
 
-def vgg5(config):
+def SpikingVGG5(config):
     return VGG(cfgs['vgg5'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
 
-def vgg9(config):
+def SpikingVGG9(config):
     return VGG(cfgs['vgg9'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
 
-def vgg11(config):
+def SpikingVGG11(config):
     return VGG(cfgs['vgg11'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
 
-def vgg13(config):
+def SpikingVGG13(config):
     return VGG(cfgs['vgg13'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
 
-def vgg16(config):
+def SpikingVGG16(config):
     return VGG(cfgs['vgg16'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
 
-def vgg19(config):
+def SpikingVGG19(config):
     return VGG(cfgs['vgg19'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])

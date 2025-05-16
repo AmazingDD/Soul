@@ -1,0 +1,2 @@
+membrane_threshold: 1.0       # (float) firing threshold for neuron
+surrogate: atan               # (str) surrogate function for back-propagation

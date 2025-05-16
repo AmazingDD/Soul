@@ -1,5 +1,4 @@
 import os
-import yaml
 from tqdm import tqdm
 
 import torch
@@ -14,32 +13,7 @@ from soul.utils import *
 
 
 # init all config settings TODO
-# args = parse_args()
-# config = init_config(args)
-
-config = {
-    'seed': 2025,
-    'log_dir': './logs',
-    'data_dir': '~/data/cifar10/',
-    'save_dir': './saved_models/',
-    'dataset': 'cifar10',
-    'distributed': False,
-    'workers': 4,
-    'optimizer': 'adam',
-    'scheduler': 'cosine',
-    'learning_rate': 1e-4,
-    'momentum': 0.9,
-    'weight_decay': 5e-4,
-    'batch_size': 64,
-    'epochs': 70,
-
-    'model': 'vgg9',
-    'neuron_type': 'lif',
-    'time_step': 4,
-    'mlp_ratio': 1.0,
-    'membrane_threshold': 1.0,
-    'surrogate': 'atan',
-}
+config = init_config()
 
 # activate distributed
 config['is_distributed'] = "RANK" in os.environ and "WORLD_SIZE" in os.environ
@@ -47,7 +21,9 @@ if config['is_distributed']:
     dist.init_process_group(backend='nccl')
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
+    # gpu for current process
     device = torch.device("cuda", local_rank)
+    # main process
     global_rank = dist.get_rank()
 else:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,9 +32,14 @@ else:
 
 # init logger
 if global_rank == 0:
-    log_path = os.path.join(config['log_dir'], config['dataset'], config['model'], config['neuron_type'])
+    log_path = os.path.join(
+        config['log_dir'], 
+        config['dataset_name'].lower(), 
+        config['model'].lower(), 
+        config['neuron_type'].lower()
+    )
     ensure_dir(log_path)
-    logger = setup_logger(os.path.join(log_path, f'record-{get_local_time()}.log'))
+    logger = setup_logger(os.path.join(log_path, f'record-{get_local_time()}.log'), default_level=config['state'])
     logger.info(f'Distributed Training: {config["is_distributed"]}')
 else:
     logger = None
@@ -77,9 +58,16 @@ if global_rank == 0:
 # load data
 if global_rank == 0:
     logger.info('Load data...')
-train_dataset, test_dataset, config['input_channels'], config['num_classes'] = load_data(dataset_dir=config['data_dir'], dataset_type=config['dataset'], T=config['time_step'])
+train_dataset, test_dataset, config['input_channels'], config['num_classes'] = load_data(
+    dataset_dir=config['data_dir'], 
+    dataset_type=config['dataset_name'], 
+    T=config['time_step']
+)
 if config['is_distributed']:
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    # define the batch size per gpu, usually we define the numer of process equal to the number of used gpus
+    world_size = dist.get_world_size()
+    config['batch_size'] //= world_size
 else:
     train_sampler = None
 
@@ -89,12 +77,12 @@ train_loader, test_loader = get_loader(train_dataset, test_dataset, train_sample
 if global_rank == 0:
     logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"].upper()} neuron...')
 model_map = {
-    'vgg5': vgg5,
-    'vgg9': vgg9,
-    'vgg11': vgg11,
-    'vgg13': vgg13,
-    'vgg16': vgg16, 
-    'vgg19': vgg19, 
+    'spikingvgg5': SpikingVGG5,
+    'spikingvgg9': SpikingVGG9,
+    'spikingvgg11': SpikingVGG11,
+    'spikingvgg13': SpikingVGG13,
+    'spikingvgg16': SpikingVGG16, 
+    'spikingvgg19': SpikingVGG19, 
 }
 
 neuron_map = {
@@ -113,8 +101,8 @@ surrogate_map = {
 }
 
 # TODO 这里最后neuron传的参数肯定只能是config，各个neuron class自己在内部从config提取想要的参数才对
-config['neuron'] = neuron_map[config['neuron_type']](surrogate_function=surrogate_map[config['surrogate']], v_threshold=config['membrane_threshold'])
-model = model_map[config['model']](config)
+config['neuron'] = neuron_map[config['neuron_type'].lower()](surrogate_function=surrogate_map[config['surrogate']], v_threshold=config['membrane_threshold'])
+model = model_map[config['model'].lower()](config)
 model.to(device)
 
 if config['is_distributed']:
@@ -184,17 +172,16 @@ for epoch in range(1, config['epochs'] + 1):
                 top1_meter.update(acc1.item(), targets.numel())
 
         test_acc = top1_meter.avg
-        if global_rank == 0:
-            logger.info(f"[Epoch {epoch}] Train Loss: {loss_meter.avg:.4f}, Acc: {top1_meter.avg:.2f}%; Test Loss: {loss_meter.avg:.4f}, Acc: {test_acc:.2f}%")
+
+        logger.info(f"[Epoch {epoch}] Train Loss: {loss_meter.avg:.4f}, Acc: {top1_meter.avg:.2f}%; Test Loss: {loss_meter.avg:.4f}, Acc: {test_acc:.2f}%")
         if test_acc > best_acc:
             ensure_dir(config['save_dir'])
 
             best_acc = test_acc
-            if global_rank == 0:
-                logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
+            logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
             torch.save(
                 model.module.state_dict() if config['is_distributed'] else model.state_dict(), 
-                os.path.join(config['save_dir'], f'best_{config["model"]}_{config["neuron_type"]}_{config["dataset"]}_{config["seed"]}.pt')
+                os.path.join(config['save_dir'], f'best_{config["model"].lower()}_{config["neuron_type"].lower()}_{config["dataset"].lower()}_{config["seed"]}.pt')
             )
 
     scheduler.step()

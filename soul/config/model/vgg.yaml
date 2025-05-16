@@ -1,0 +1,1 @@
+mlp_ratio: 1.0                # (float) expand ratio for MLP hidden layers

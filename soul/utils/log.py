@@ -29,7 +29,7 @@ def setup_logger(log_path='', default_level='INFO'):
 
     # Color formatter for stream handler
     color_formatter = colorlog.ColoredFormatter(
-        fmt="%(log_color)s[%(levelname)s] - %(message)s",
+        fmt="%(log_color)s[%(levelname)s]%(reset)s - %(message)s",
         datefmt=r'%Y-%m-%d %H:%M:%S',
         log_colors={
             'DEBUG':    'cyan',
