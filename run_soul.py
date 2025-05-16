@@ -11,8 +11,7 @@ from soul.model import *
 from soul.neuron import *
 from soul.utils import *
 
-
-# init all config settings TODO
+# init all config settings
 config = init_config()
 
 # activate distributed
@@ -44,14 +43,14 @@ if global_rank == 0:
 else:
     logger = None
 
-# report configuration
+# report all configuration
 for k, v in sorted(config.items()):
     if global_rank == 0:
         logger.info(f'{k} = {v}')
 
 # reproducibility
 if global_rank == 0:
-    logger.info(f'Init seed {config["seed"]}...')
+    logger.info(f'Reproducibility with random seed {config["seed"]}...')
     init_seed(config["seed"])
     logger.info('=' * 50)
 
@@ -83,6 +82,7 @@ model_map = {
     'spikingvgg13': SpikingVGG13,
     'spikingvgg16': SpikingVGG16, 
     'spikingvgg19': SpikingVGG19, 
+    # TODO
 }
 
 neuron_map = {
@@ -91,17 +91,20 @@ neuron_map = {
     "clif": MultiStepCLIFNeuron,
     "glif": GatedLIFNode,
     "ilif": ILIF,
+    # TODO
 }
 
-# TODO 去SJ化
-from spikingjelly.activation_based import surrogate
 surrogate_map = {
-    'atan': surrogate.ATan(),
-    # TODO 需要从spikingjelly或者别的地方扒一下常见的SG
+    'atan': ATan(),
+    'erf': Erf(),
+    'rect': Rectangular(),
+    'sigmoid': FastSigmoid(),
 }
+logger.debug(f'surrogate function: {config["surrogate"]}')
+config['surrogate_function'] = surrogate_map[config['surrogate']]
 
 # TODO 这里最后neuron传的参数肯定只能是config，各个neuron class自己在内部从config提取想要的参数才对
-config['neuron'] = neuron_map[config['neuron_type'].lower()](surrogate_function=surrogate_map[config['surrogate']], v_threshold=config['membrane_threshold'])
+config['neuron'] = neuron_map[config['neuron_type'].lower()](surrogate_function=config['surrogate_function'], v_threshold=config['membrane_threshold'])
 model = model_map[config['model'].lower()](config)
 model.to(device)
 
@@ -175,13 +178,13 @@ for epoch in range(1, config['epochs'] + 1):
 
         logger.info(f"[Epoch {epoch}] Train Loss: {loss_meter.avg:.4f}, Acc: {top1_meter.avg:.2f}%; Test Loss: {loss_meter.avg:.4f}, Acc: {test_acc:.2f}%")
         if test_acc > best_acc:
-            ensure_dir(config['save_dir'])
+            ensure_dir(config['model_dir'])
 
             best_acc = test_acc
             logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
             torch.save(
                 model.module.state_dict() if config['is_distributed'] else model.state_dict(), 
-                os.path.join(config['save_dir'], f'best_{config["model"].lower()}_{config["neuron_type"].lower()}_{config["dataset"].lower()}_{config["seed"]}.pt')
+                os.path.join(config['model_dir'], f'best_{config["model"].lower()}_{config["neuron_type"].lower()}_{config["dataset_name"].lower()}_{config["seed"]}.pt')
             )
 
     scheduler.step()
