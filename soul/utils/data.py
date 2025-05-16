@@ -1,16 +1,16 @@
 import os
 import pickle
 import cv2 as cv
-from PIL import Image
 import pandas as pd
+from PIL import Image
 
 import torch
-import torch.utils
 import torchvision
 from torchvision.io import read_image
 import torchvision.transforms as transforms
+from torch.utils.data import Dataset, DataLoader
 
-__all__ = ['load_data']
+__all__ = ['load_data', 'get_loader']
 
 def print_progress_bar (iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     """
@@ -38,7 +38,7 @@ def pickle_data(data, label, filename):
     pickle.dump((data, label), outfile)
     outfile.close()
 
-class TinyImageNetDataset(torch.utils.data.Dataset):
+class TinyImageNetDataset(Dataset):
     def __init__(self, root='./tiny-imagenet-200', train=True):
         super().__init__()
 
@@ -132,7 +132,7 @@ class DVStransform:
         shape.extend(img.shape[1:])
         return img.view(shape)
     
-class DatasetWarpper(torch.utils.data.Dataset):
+class DatasetWarpper(Dataset):
     def __init__(self, dataset, transform):
         self.dataset = dataset
         self.trasnform = transform
@@ -247,11 +247,24 @@ def load_data(dataset_type, dataset_dir, T=4):
 
     return dataset_train, dataset_test, input_channels, num_classes
 
-def get_loader(dataset, sampler, config):
-    return torch.utils.data.DataLoader(
-        dataset, 
+def get_loader(train_dataset, test_dataset, train_sampler, config):
+    train_shuffle = True if config['is_distributed'] else False
+    
+    train_loader = DataLoader(
+        train_dataset, 
         batch_size=config['batch_size'], 
-        sampler=sampler, 
+        shuffle=train_shuffle,
+        sampler=train_sampler, 
         num_workers=config['workers'], 
         pin_memory=True
     )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config['batch_size'], 
+        shuffle=False,
+        num_workers=config['workers'], 
+        pin_memory=True
+    )
+
+    return train_loader, test_loader

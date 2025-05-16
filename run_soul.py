@@ -6,28 +6,27 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.distributed as dist
-import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from soul.model import *
 from soul.neuron import *
 from soul.utils import *
 
-# CUDA_VISIBLE_DEVICES=1,3,4,5 python main.py --distributed   
 
-# init all config settings
+# init all config settings TODO
 # args = parse_args()
 # config = init_config(args)
 
 config = {
     'seed': 2025,
     'log_dir': './logs',
-    'data_dir': '/home/yudi/data/cifar10/',
+    'data_dir': '~/data/cifar10/',
     'save_dir': './saved_models/',
     'dataset': 'cifar10',
     'distributed': False,
     'workers': 4,
     'optimizer': 'adam',
+    'scheduler': 'cosine',
     'learning_rate': 1e-4,
     'momentum': 0.9,
     'weight_decay': 5e-4,
@@ -50,38 +49,36 @@ logger = setup_logger(os.path.join(log_path, f'record-{get_local_time()}.log'))
 # report configuration
 for k, v in sorted(config.items()):
     logger.info(f'{k} = {v}')
-logger.info('=' * 80)
 
 # reproducibility
 logger.info(f'Init seed {config["seed"]}...')
 init_seed(config["seed"])
 
-if config['distributed'] and 'RANK' not in os.environ:
-    os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29501'
-    world_size = torch.cuda.device_count()
-    mp.spawn(os.execv, args=(__file__, [__file__, *os.sys.argv[1:]]), nprocs=world_size)
-    exit(0)
-
-rank = int(os.environ.get('RANK', '0'))
-local_rank = int(os.environ.get('LOCAL_RANK', rank))
-world_size = int(os.environ.get('WORLD_SIZE', torch.cuda.device_count()))
-distributed = config['distributed'] and world_size > 1
+# activate distributed
+config['is_distributed'] = "RANK" in os.environ and "WORLD_SIZE" in os.environ
+logger.info(f'Distributed Training: {config["is_distributed"]}')
+if config['is_distributed']:
+    dist.init_process_group(backend='nccl')
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
+    device = torch.device("cuda", local_rank)
+else:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger.info(f'Device: {device}')
+logger.info('=' * 80)
 
 # load data
 logger.info('Load data...')
 train_dataset, test_dataset, config['input_channels'], config['num_classes'] = load_data(dataset_dir=config['data_dir'], dataset_type=config['dataset'], T=config['time_step'])
-if distributed:
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
+if config['is_distributed']:
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
 else:
-    train_sampler = torch.utils.data.RandomSampler(train_dataset)
-test_sampler = torch.utils.data.SequentialSampler(test_dataset)
+    train_sampler = None
 
-train_loader = get_loader(train_dataset, train_sampler, config)
-test_loader = get_loader(test_dataset, test_sampler, config)
+train_loader, test_loader = get_loader(train_dataset, test_dataset, train_sampler, config)
 
 # load SNN model
-logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"]} neuron...')
+logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"].upper()} neuron...')
 model_map = {
     'vgg5': vgg5,
     'vgg9': vgg9,
@@ -101,46 +98,53 @@ neuron_map = {
 
 # TODO 去SJ化
 from spikingjelly.activation_based import surrogate
-
 surrogate_map = {
     'atan': surrogate.ATan(),
     # TODO 需要从spikingjelly或者别的地方扒一下常见的SG
 }
 
-logger.info(f'Init neuron type: {config["neuron_type"].upper()}')
 # TODO 这里最后neuron传的参数肯定只能是config，各个neuron class自己在内部从config提取想要的参数才对
 config['neuron'] = neuron_map[config['neuron_type']](surrogate_function=surrogate_map[config['surrogate']], v_threshold=config['membrane_threshold'])
 model = model_map[config['model']](config)
-
-if distributed:
-    dist.init_process_group(backend='nccl', init_method='env://', world_size=world_size, rank=rank)
-    torch.cuda.set_device(local_rank)
-    device = torch.device(f'cuda:{local_rank}')
-else:
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
-if distributed:
+if config['is_distributed']:
     model = DDP(model, device_ids=[local_rank])
 
 criterion = nn.CrossEntropyLoss()
-# TODO 加更多的optimizer
-if config['optimizer'] == 'sgd':
+# init optimzer
+if config['optimizer'].lower() == 'sgd':
     optimizer = optim.SGD(model.parameters(), lr=config['learning_rate'], momentum=config['momentum'], weight_decay=config['weight_decay'])
-elif config['optimizer'] == 'adam':
+elif config['optimizer'].lower() == 'adam':
     optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
+elif config['optimizer'].lower() == 'adamw':
+    optimizer = optim.AdamW(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
+elif config['optimizer'].lower() == 'rmsprop':
+    optimizer = optim.RMSprop(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
 else:
-    raise ValueError(f'Invalid optimizer setting {config["optimizer"]}...')
+    logger.warning(f"Received unrecognized optimizer {config['optimizer']}, set default Adam optimizer")
+    optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
+
+# init scheduler
+if config['scheduler'].lower() == 'cosine':
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config["epochs"])
+elif config['scheduler'].lower() == 'linear':
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=int(config["epochs"] * 0.25), gamma=0.1)
+elif config['scheduler'].lower() == 'warmup':
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=int(config["epochs"] * 0.1), T_mult=2)
+else:
+    logger.warning(f"Received unrecognized scheduler {config['scheduler']}, set default ConsineAnnealing Scheduler")
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config["epochs"])
 
 best_acc = 0.
 for epoch in range(1, config['epochs'] + 1):
     model.train()
-    if distributed:
+    if config['is_distributed']:
         train_sampler.set_epoch(epoch)
     
     top1_meter, loss_meter = AverageMeter(), AverageMeter()
     for inputs, targets in tqdm(train_loader, unit='batch', ncols=80):
-        inputs, targets = inputs.to(device), targets.to(device)
+        inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
         optimizer.zero_grad()
         outputs = model(inputs)
         acc1 = accuracy(outputs, targets, topk=(1,))[0]
@@ -152,13 +156,13 @@ for epoch in range(1, config['epochs'] + 1):
         top1_meter.update(acc1.item(), targets.numel())
         loss_meter.update(loss.item(), targets.numel())
 
-    if not distributed or rank == 0:
+    if not config['is_distributed'] or dist.get_rank() == 0:
         model.eval()
 
         top1_meter, loss_meter = AverageMeter(), AverageMeter()
         with torch.no_grad():
             for inputs, targets in test_loader:
-                inputs, targets = inputs.to(device), targets.to(device)
+                inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
                 outputs = model(inputs)
                 acc1 = accuracy(outputs, targets, topk=(1,))[0]
                 loss = criterion(outputs, targets)
@@ -173,10 +177,12 @@ for epoch in range(1, config['epochs'] + 1):
 
             best_acc = test_acc
             torch.save(
-                model.module.state_dict() if distributed else model.state_dict(), 
+                model.module.state_dict() if config['is_distributed'] else model.state_dict(), 
                 os.path.join(config['save_dir'], f'best_{config["model"]}_{config["neuron_type"]}_{config["dataset"]}_{config["seed"]}.pt')
             )
             logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
 
-if distributed:
+    scheduler.step()
+
+if config['is_distributed']:
     dist.destroy_process_group()
