@@ -248,7 +248,7 @@ def load_data(dataset_type, dataset_dir, T=4):
     return dataset_train, dataset_test, input_channels, num_classes
 
 def get_loader(train_dataset, test_dataset, train_sampler, config):
-    train_shuffle = True if config['is_distributed'] else False
+    train_shuffle = False if config['is_distributed'] else True
     
     train_loader = DataLoader(
         train_dataset, 

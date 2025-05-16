@@ -41,34 +41,42 @@ config = {
     'surrogate': 'atan',
 }
 
-# init logger
-log_path = os.path.join(config['log_dir'], config['dataset'], config['model'], config['neuron_type'])
-ensure_dir(log_path)
-logger = setup_logger(os.path.join(log_path, f'record-{get_local_time()}.log'))
-
-# report configuration
-for k, v in sorted(config.items()):
-    logger.info(f'{k} = {v}')
-
-# reproducibility
-logger.info(f'Init seed {config["seed"]}...')
-init_seed(config["seed"])
-
 # activate distributed
 config['is_distributed'] = "RANK" in os.environ and "WORLD_SIZE" in os.environ
-logger.info(f'Distributed Training: {config["is_distributed"]}')
 if config['is_distributed']:
     dist.init_process_group(backend='nccl')
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
     device = torch.device("cuda", local_rank)
+    global_rank = dist.get_rank()
 else:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-logger.info(f'Device: {device}')
-logger.info('=' * 80)
+    local_rank = 0
+    global_rank = 0
+
+# init logger
+if global_rank == 0:
+    log_path = os.path.join(config['log_dir'], config['dataset'], config['model'], config['neuron_type'])
+    ensure_dir(log_path)
+    logger = setup_logger(os.path.join(log_path, f'record-{get_local_time()}.log'))
+    logger.info(f'Distributed Training: {config["is_distributed"]}')
+else:
+    logger = None
+
+# report configuration
+for k, v in sorted(config.items()):
+    if global_rank == 0:
+        logger.info(f'{k} = {v}')
+
+# reproducibility
+if global_rank == 0:
+    logger.info(f'Init seed {config["seed"]}...')
+    init_seed(config["seed"])
+    logger.info('=' * 50)
 
 # load data
-logger.info('Load data...')
+if global_rank == 0:
+    logger.info('Load data...')
 train_dataset, test_dataset, config['input_channels'], config['num_classes'] = load_data(dataset_dir=config['data_dir'], dataset_type=config['dataset'], T=config['time_step'])
 if config['is_distributed']:
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -78,7 +86,8 @@ else:
 train_loader, test_loader = get_loader(train_dataset, test_dataset, train_sampler, config)
 
 # load SNN model
-logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"].upper()} neuron...')
+if global_rank == 0:
+    logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"].upper()} neuron...')
 model_map = {
     'vgg5': vgg5,
     'vgg9': vgg9,
@@ -122,7 +131,8 @@ elif config['optimizer'].lower() == 'adamw':
 elif config['optimizer'].lower() == 'rmsprop':
     optimizer = optim.RMSprop(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
 else:
-    logger.warning(f"Received unrecognized optimizer {config['optimizer']}, set default Adam optimizer")
+    if global_rank == 0:
+        logger.warning(f"Received unrecognized optimizer {config['optimizer']}, set default Adam optimizer")
     optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'], weight_decay=config['weight_decay'])
 
 # init scheduler
@@ -133,7 +143,8 @@ elif config['scheduler'].lower() == 'linear':
 elif config['scheduler'].lower() == 'warmup':
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=int(config["epochs"] * 0.1), T_mult=2)
 else:
-    logger.warning(f"Received unrecognized scheduler {config['scheduler']}, set default ConsineAnnealing Scheduler")
+    if global_rank == 0:
+        logger.warning(f"Received unrecognized scheduler {config['scheduler']}, set default ConsineAnnealing Scheduler")
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config["epochs"])
 
 best_acc = 0.
@@ -143,7 +154,9 @@ for epoch in range(1, config['epochs'] + 1):
         train_sampler.set_epoch(epoch)
     
     top1_meter, loss_meter = AverageMeter(), AverageMeter()
-    for inputs, targets in tqdm(train_loader, unit='batch', ncols=80):
+    # customize progress bar for train loader
+    loader = tqdm(train_loader, unit='batch', ncols=80) if global_rank == 0 else train_loader
+    for inputs, targets in loader:
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
         optimizer.zero_grad()
         outputs = model(inputs)
@@ -171,16 +184,18 @@ for epoch in range(1, config['epochs'] + 1):
                 top1_meter.update(acc1.item(), targets.numel())
 
         test_acc = top1_meter.avg
-        logger.info(f"[Epoch {epoch}] Train Loss: {loss_meter.avg:.4f}, Acc: {top1_meter.avg:.2f}%; Test Loss: {loss_meter.avg:.4f}, Acc: {test_acc:.2f}%")
+        if global_rank == 0:
+            logger.info(f"[Epoch {epoch}] Train Loss: {loss_meter.avg:.4f}, Acc: {top1_meter.avg:.2f}%; Test Loss: {loss_meter.avg:.4f}, Acc: {test_acc:.2f}%")
         if test_acc > best_acc:
             ensure_dir(config['save_dir'])
 
             best_acc = test_acc
+            if global_rank == 0:
+                logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
             torch.save(
                 model.module.state_dict() if config['is_distributed'] else model.state_dict(), 
                 os.path.join(config['save_dir'], f'best_{config["model"]}_{config["neuron_type"]}_{config["dataset"]}_{config["seed"]}.pt')
             )
-            logger.info(f'Best model saved with accuracy: {best_acc:.2f}%')
 
     scheduler.step()
 
