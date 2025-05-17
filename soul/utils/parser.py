@@ -1,4 +1,5 @@
 import os
+import re
 import yaml
 import argparse
 
@@ -134,12 +135,13 @@ def init_config():
     config.update(vars(args))
 
     # load model specific yaml
-    if 'vgg' in config['model'].lower():
-        target_config_file = os.path.join(current_path, "../config/model/vgg.yaml")
-    if 'sewresnet' in config['model'].lower():
-        target_config_file = os.path.join(current_path, "../config/model/sewresnet.yaml")
+    match = re.match(r'^([a-zA-Z]+)', config['model'])
+    if match:
+        model_cofig_name = match.group(1)
     else:
         raise NotImplementedError(f'No yaml config for model: {config["model"]}')
+    target_config_file = os.path.join(current_path, f"../config/model/{model_cofig_name.lower()}.yaml")
+        
     model_default_config = yaml.safe_load(open(target_config_file, 'r', encoding="utf-8"))
     config.update(model_default_config)
 

@@ -78,7 +78,7 @@ if global_rank == 0:
 model_map = {
     'spikingvgg5': SpikingVGG5, 'spikingvgg9': SpikingVGG9, 'spikingvgg11': SpikingVGG11, 'spikingvgg13': SpikingVGG13, 'spikingvgg16': SpikingVGG16, 'spikingvgg19': SpikingVGG19, 
     'sewresnet18': SEWResNet18, 'sewresnet34': SEWResNet34, 'sewresnet50': SEWResNet50,
-    # TODO
+    'spikformer2': Spikformer2, 'spikformer4': Spikformer4,
 }
 
 neuron_map = {
