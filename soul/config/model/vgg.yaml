@@ -1,1 +1,2 @@
 mlp_ratio: 1.0                # (float) expand ratio for MLP hidden layers
+mlp_hidden_dim: 2048          # (int) hidden dimension for intermediate layers in VGG mlp part

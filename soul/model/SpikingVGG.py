@@ -71,22 +71,13 @@ class ConvMLP(nn.Module):
 
 
 class VGG(nn.Module):
-    def __init__(
-        self, 
-        cfg, 
-        lif, 
-        T=4,
-        in_chans=3,
-        num_classes=10, 
-        mlp_ratio=1.0
-    ):
-        super(VGG, self).__init__()
+    def __init__(self, cfg, config):
+        super(VGG, self).__init__()  
 
-        self.num_classes = num_classes
-        self.T = T
+        self.num_classes = config['num_classes']
+        self.T = config['time_step']
 
-        prev_chs = in_chans
-
+        prev_chs = config['input_channels']
         pool_layer = nn.MaxPool2d
         layers = []
         for v in cfg:
@@ -97,22 +88,22 @@ class VGG(nn.Module):
                 )]
             else:
                 v = int(v)
-                layers += [ConvBNLIF(lif, prev_chs, v)]
+                layers += [ConvBNLIF(config['neuron'], prev_chs, v)]
                 prev_chs = v
             
         self.features = nn.Sequential(*layers)
 
         self.num_features = prev_chs
-        self.head_hidden_size = 1024 if cfg in ['vgg5', 'vgg9'] else 4096 
+        self.head_hidden_size = config['mlp_hidden_dim']
 
         self.pre_logits = ConvMLP(
-            lif,
+            config['neuron'],
             prev_chs,
             self.head_hidden_size,
             7,
-            mlp_ratio=mlp_ratio,
+            mlp_ratio=config['mlp_ratio'],
         )
-        self.head = nn.Linear(self.head_hidden_size, num_classes)
+        self.head = nn.Linear(self.head_hidden_size, config['num_classes'])
 
         self._initialize_weights()
 
@@ -152,19 +143,19 @@ class VGG(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 def SpikingVGG5(config):
-    return VGG(cfgs['vgg5'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg5'], config)
 
 def SpikingVGG9(config):
-    return VGG(cfgs['vgg9'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg9'], config)
 
 def SpikingVGG11(config):
-    return VGG(cfgs['vgg11'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg11'], config)
 
 def SpikingVGG13(config):
-    return VGG(cfgs['vgg13'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg13'], config)
 
 def SpikingVGG16(config):
-    return VGG(cfgs['vgg16'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg16'], config)
 
 def SpikingVGG19(config):
-    return VGG(cfgs['vgg19'], config['neuron'], config['time_step'], config['input_channels'], config['num_classes'], config['mlp_ratio'])
+    return VGG(cfgs['vgg19'], config)
