@@ -57,7 +57,7 @@ if global_rank == 0:
 # load data
 if global_rank == 0:
     logger.info('Load data...')
-train_dataset, test_dataset, config['input_channels'], config['num_classes'] = load_data(
+train_dataset, test_dataset, config['input_channels'], config['input_height'], config['input_width'], config['num_classes'] = load_data(
     dataset_dir=config['data_dir'], 
     dataset_type=config['dataset_name'], 
     T=config['time_step']

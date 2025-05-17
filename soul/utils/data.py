@@ -1,8 +1,11 @@
 import os
+import math
 import pickle
 import cv2 as cv
+import numpy as np
 import pandas as pd
 from PIL import Image
+from tqdm import tqdm
 
 import torch
 import torchvision
@@ -11,6 +14,44 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 
 __all__ = ['load_data', 'get_loader']
+
+def split_to_train_test_set(train_ratio: float, origin_dataset: torch.utils.data.Dataset, num_classes: int, random_split: bool = False):
+    '''
+    :param train_ratio: split the ratio of the origin dataset as the train set
+    :type train_ratio: float
+    :param origin_dataset: the origin dataset
+    :type origin_dataset: torch.utils.data.Dataset
+    :param num_classes: total classes number, e.g., ``10`` for the MNIST dataset
+    :type num_classes: int
+    :param random_split: If ``False``, the front ratio of samples in each classes will
+            be included in train set, while the reset will be included in test set.
+            If ``True``, this function will split samples in each classes randomly. The randomness is controlled by
+            ``numpy.random.seed``
+    :type random_split: int
+    :return: a tuple ``(train_set, test_set)``
+    :rtype: tuple
+    '''
+    label_idx = []
+    for i in range(num_classes):
+        label_idx.append([])
+
+    for i, item in enumerate(tqdm(origin_dataset, ncols=80)):
+        y = item[1]
+        if isinstance(y, np.ndarray) or isinstance(y, torch.Tensor):
+            y = y.item()
+        label_idx[y].append(i)
+    train_idx = []
+    test_idx = []
+    if random_split:
+        for i in range(num_classes):
+            np.random.shuffle(label_idx[i])
+
+    for i in range(num_classes):
+        pos = math.ceil(label_idx[i].__len__() * train_ratio)
+        train_idx.extend(label_idx[i][0: pos])
+        test_idx.extend(label_idx[i][pos: label_idx[i].__len__()])
+
+    return torch.utils.data.Subset(origin_dataset, train_idx), torch.utils.data.Subset(origin_dataset, test_idx)
 
 def print_progress_bar (iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     """
@@ -148,6 +189,7 @@ def load_data(dataset_type, dataset_dir, T=4):
 
     if dataset_type == 'cifar10':
         input_channels = 3
+        H, W = 32, 32
         num_classes = 10
 
         transform_train = transforms.Compose([
@@ -169,6 +211,7 @@ def load_data(dataset_type, dataset_dir, T=4):
         )
     elif dataset_type == 'cifar100':
         input_channels = 3
+        H, W = 32, 32
         num_classes = 100
 
         transform_train = transforms.Compose([
@@ -191,16 +234,16 @@ def load_data(dataset_type, dataset_dir, T=4):
 
     elif dataset_type == 'cifar10dvs':
         input_channels = 2
+        H, W = 64, 64
         num_classes = 10
 
         from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
-        from spikingjelly.datasets import split_to_train_test_set
 
         transform_train = DVStransform(
-            transform=transforms.Compose([transforms.Resize(size=(48, 48), antialias=True)])
+            transform=transforms.Compose([transforms.Resize(size=(H, W), antialias=True)])
         )
         transform_test = DVStransform(
-            transform=transforms.Resize(size=(48, 48), antialias=True)
+            transform=transforms.Resize(size=(H, W), antialias=True)
         )
 
         dataset = CIFAR10DVS(dataset_dir, data_type='frame', frames_number=T, split_by='number') # 10
@@ -209,6 +252,7 @@ def load_data(dataset_type, dataset_dir, T=4):
 
     elif dataset_type == 'imagenet':
         input_channels = 3
+        H, W = 224, 224
         num_classes = 200
 
         transform_train = transforms.Compose([
@@ -233,11 +277,12 @@ def load_data(dataset_type, dataset_dir, T=4):
 
     elif dataset_type == 'dvsgesture':
         input_channels = 2
+        H, W = 64, 64
         num_classes = 11
 
         from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
-        transform_train = DVStransform(transform=transforms.Compose([transforms.Resize(size=(64, 64), antialias=True)])) # 10
-        transform_test = DVStransform(transform=transforms.Resize(size=(64, 64), antialias=True))
+        transform_train = DVStransform(transform=transforms.Compose([transforms.Resize(size=(H, W), antialias=True)]))
+        transform_test = DVStransform(transform=transforms.Resize(size=(H, W), antialias=True))
 
         dataset_train = DVS128Gesture(dataset_dir, train=True, data_type='frame', frames_number=T, split_by='number')
         dataset_test = DVS128Gesture(dataset_dir, train=False, data_type='frame', frames_number=T, split_by='number')
@@ -245,7 +290,7 @@ def load_data(dataset_type, dataset_dir, T=4):
     dataset_train = DatasetWarpper(dataset_train, transform_train)
     dataset_test = DatasetWarpper(dataset_test, transform_test)
 
-    return dataset_train, dataset_test, input_channels, num_classes
+    return dataset_train, dataset_test, input_channels, H, W, num_classes
 
 def get_loader(train_dataset, test_dataset, train_sampler, config):
     train_shuffle = False if config['is_distributed'] else True
