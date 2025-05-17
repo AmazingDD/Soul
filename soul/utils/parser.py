@@ -136,8 +136,10 @@ def init_config():
     # load model specific yaml
     if 'vgg' in config['model'].lower():
         target_config_file = os.path.join(current_path, "../config/model/vgg.yaml")
+    if 'sewresnet' in config['model'].lower():
+        target_config_file = os.path.join(current_path, "../config/model/sewresnet.yaml")
     else:
-        target_config_file = os.path.join(current_path, f"../config/model/{config['model']}.yaml")
+        raise NotImplementedError(f'No yaml config for model: {config["model"]}')
     model_default_config = yaml.safe_load(open(target_config_file, 'r', encoding="utf-8"))
     config.update(model_default_config)
 

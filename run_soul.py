@@ -76,12 +76,8 @@ train_loader, test_loader = get_loader(train_dataset, test_dataset, train_sample
 if global_rank == 0:
     logger.info(f'Load SNN model: {config["model"]} featured {config["neuron_type"].upper()} neuron...')
 model_map = {
-    'spikingvgg5': SpikingVGG5,
-    'spikingvgg9': SpikingVGG9,
-    'spikingvgg11': SpikingVGG11,
-    'spikingvgg13': SpikingVGG13,
-    'spikingvgg16': SpikingVGG16, 
-    'spikingvgg19': SpikingVGG19, 
+    'spikingvgg5': SpikingVGG5, 'spikingvgg9': SpikingVGG9, 'spikingvgg11': SpikingVGG11, 'spikingvgg13': SpikingVGG13, 'spikingvgg16': SpikingVGG16, 'spikingvgg19': SpikingVGG19, 
+    'sewresnet18': SEWResNet18, 'sewresnet34': SEWResNet34, 'sewresnet50': SEWResNet50,
     # TODO
 }
 

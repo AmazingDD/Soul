@@ -1,0 +1,4 @@
+connect_function: 'ADD'                   # (str) Optional spike element-wise operation, 'ADD', 'IAND', 'AND'
+groups: 1                                 # (int) grouped convolution
+width_per_group: 64                       # (int) number of channels for intermediate layers
+zero_init_residual: False                 # (bool) whether zero-initialize the last BN in each residual branch
