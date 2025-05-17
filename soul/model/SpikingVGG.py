@@ -4,10 +4,9 @@ import torch.nn.functional as F
 
 from copy import deepcopy
 
-from spikingjelly.activation_based import layer, functional
+from spikingjelly.activation_based import functional
 
-
-__all__ = ['VGG']
+__all__ = ['VGG', 'SpikingVGG5', 'SpikingVGG9', 'SpikingVGG11', 'SpikingVGG13', 'SpikingVGG16', 'SpikingVGG19']
 
 cfgs = {
     'vgg5': [64, 'M', 128, 'M'],
@@ -18,18 +17,37 @@ cfgs = {
     'vgg19': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
 }
 
+def multi_time_forward(x_seq, stateless_module):
+    y_shape = [x_seq.shape[0], x_seq.shape[1]] # [T, B]
+    y = x_seq.flatten(0, 1)
+    if isinstance(stateless_module, (list, tuple, nn.Sequential)):
+        for m in stateless_module:
+            y = m(y)
+    else:
+        y = stateless_module(y)
+    
+    y_shape.extend(y.shape[1:]) # [T, B] + [...] -> [T, B, ...]
+    return y.view(y_shape)
+
+class MaxPool2d(nn.MaxPool2d):
+    def __init__(self, kernel_size, stride=None, padding=0, dilation=1, return_indices=False, ceil_mode=False):
+        super().__init__(kernel_size, stride, padding, dilation, return_indices, ceil_mode)
+
+    def forward(self, x):
+        return multi_time_forward(x, super().forward)
+
 class ConvBNLIF(nn.Module):
     def __init__(self, lif, in_channels, out_channels):
         super().__init__()
 
-        self.conv = layer.SeqToANNContainer(
+        self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(out_channels, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True)
         )
         self.sn = deepcopy(lif)
 
     def forward(self, x):
-        x = self.conv(x)
+        x = multi_time_forward(x, self.conv)
         output = self.sn(x)
 
         return output
@@ -41,13 +59,13 @@ class ConvMLP(nn.Module):
         self.input_kernel_size = kernel_size
         mid_features = int(out_features * mlp_ratio)
 
-        self.fc1 = layer.SeqToANNContainer(
+        self.fc1 = nn.Sequential(
             nn.Conv2d(in_features, mid_features, kernel_size, bias=False),
             nn.BatchNorm2d(mid_features),
         )
         self.sn1 = deepcopy(lif)
 
-        self.fc2 = layer.SeqToANNContainer(
+        self.fc2 = nn.Sequential(
             nn.Conv2d(mid_features, out_features, 1, bias=False),
             nn.BatchNorm2d(out_features),
         )
@@ -62,9 +80,9 @@ class ConvMLP(nn.Module):
             x = F.adaptive_avg_pool2d(x.flatten(0, 1), output_size) # -> (TB, C, output_size[0], output_size[1])
             x = x.reshape(T, B, C, output_size[0], output_size[1])
 
-        x = self.fc1(x)
+        x = multi_time_forward(x, self.fc1)
         x = self.sn1(x)
-        x = self.fc2(x)
+        x = multi_time_forward(x, self.fc2)
         x = self.sn2(x)
 
         return x
@@ -78,14 +96,12 @@ class VGG(nn.Module):
         self.T = config['time_step']
 
         prev_chs = config['input_channels']
-        pool_layer = nn.MaxPool2d
+        pool_layer = MaxPool2d
         layers = []
         for v in cfg:
             last_idx = len(layers) - 1
             if v == 'M':
-                layers += [layer.SeqToANNContainer(
-                    pool_layer(kernel_size=2, stride=2)
-                )]
+                layers += [pool_layer(kernel_size=2, stride=2)]
             else:
                 v = int(v)
                 layers += [ConvBNLIF(config['neuron'], prev_chs, v)]
