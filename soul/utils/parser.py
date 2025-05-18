@@ -130,6 +130,10 @@ def init_config():
     overall_init_file = os.path.join(current_path, "../config/basic.yaml")
     config = yaml.safe_load(open(overall_init_file, 'r', encoding="utf-8"))
 
+    # update args
+    args = parse_args()
+    config.update(vars(args))
+
     # load model specific yaml
     match = re.match(r'^([a-zA-Z]+)', config['model'])
     if match:
@@ -145,9 +149,5 @@ def init_config():
     target_config_file = os.path.join(current_path, f"../config/neuron/{config['neuron_type'].lower()}.yaml")
     neuron_default_config = yaml.safe_load(open(target_config_file, 'r', encoding="utf-8"))
     config.update(neuron_default_config)
-
-    # update args
-    args = parse_args()
-    config.update(vars(args))
     
     return config
