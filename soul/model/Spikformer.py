@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from spikingjelly.activation_based import functional
 
-__all__ = ['Spikformer', 'Spikformer2', 'Spikformer4']
+__all__ = ['Spikformer', 'Spikformer2', 'Spikformer4', 'Spikformer8']
 
 class MLP(nn.Module):
     def __init__(self, lif, in_features, hidden_features=None, out_features=None):
@@ -232,3 +232,6 @@ def Spikformer2(config):
 
 def Spikformer4(config):
     return Spikformer(config, depths=4, embed_dims=384)
+
+def Spikformer8(config):
+    return Spikformer(config, depths=8, embed_dims=512)
