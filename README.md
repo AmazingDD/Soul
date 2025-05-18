@@ -38,11 +38,11 @@ TBD
 - [ ] 2025.5.17-2025.5.25 神经元输入解耦，对齐config作为输入
 - [ ] 2025.5.17-2025.5.25 neuron进行标准化、去SJ化，以base为父类进行继承开发
 - [ ] 2025.5.18-2025.5.19 mobicom motivation ppt
-- [ ] 2025.5.18 mobicom24 paper ppt report
+- [ ] 2025.5.18-2025.5.22 mobicom24 paper ppt report
 - [ ] 2025.5.20-2025.5.31 ACM computing survey V1 shoule be done
 - [ ] 2025.5.22-2025.5.23 Edge energy monitor include
 - [ ] 2025.5.22-2025.5.25 wentao FLOPs/SOPs include
-- [ ] 2025.5.22-2025.5.25 #Param and model size for memory footprint
+- [x] 2025.5.18-2025.5.25 #Param and model size for memory footprint
  
 
 ## Cite

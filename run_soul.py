@@ -1,4 +1,5 @@
 import os
+import time
 from tqdm import tqdm
 
 import torch
@@ -78,7 +79,7 @@ if global_rank == 0:
 model_map = {
     'spikingvgg5': SpikingVGG5, 'spikingvgg9': SpikingVGG9, 'spikingvgg11': SpikingVGG11, 'spikingvgg13': SpikingVGG13, 'spikingvgg16': SpikingVGG16, 'spikingvgg19': SpikingVGG19, 
     'sewresnet18': SEWResNet18, 'sewresnet34': SEWResNet34, 'sewresnet50': SEWResNet50,
-    'spikformer2': Spikformer2, 'spikformer4': Spikformer4,
+    'spikformer2': Spikformer2, 'spikformer4': Spikformer4, 'spikformer8': Spikformer8,
 }
 
 neuron_map = {
@@ -103,6 +104,10 @@ config['surrogate_function'] = surrogate_map[config['surrogate']]
 config['neuron'] = neuron_map[config['neuron_type'].lower()](surrogate_function=config['surrogate_function'], v_threshold=config['membrane_threshold'])
 model = model_map[config['model'].lower()](config)
 model.to(device)
+
+# calculate number of parameters
+n_parameters = sum(p.numel() for p in model.parameters() if hasattr(p, 'requires_grad'))
+logger.info(f"Number of params for model {config['model']}: {n_parameters / 1000:.2f} K")
 
 if config['is_distributed']:
     model = DDP(model, device_ids=[local_rank])
@@ -187,3 +192,33 @@ for epoch in range(1, config['epochs'] + 1):
 
 if config['is_distributed']:
     dist.destroy_process_group()
+
+# monitor max memory footprint with the best model
+if not config['is_distributed'] or dist.get_rank() == 0:
+    best_model_path = os.path.join(config['model_dir'], f'best_{config["model"].lower()}_{config["neuron_type"].lower()}_{config["dataset_name"].lower()}_{config["seed"]}.pt')
+    logger.info(f'The size of model parameter checkpoint file: {os.path.getsize(best_model_path) / (1024 ** 2):.2f} MB')
+    best_params = torch.load(
+        best_model_path, 
+        map_location='cpu'
+    )
+    model.load_state_dict(best_params)
+    logger.debug(f'current device to monitor: {device}')
+    model.to(device)
+    model.eval()
+
+    new_batch_size = 1
+    test_loader = torch.utils.data.DataLoader(test_loader.dataset, batch_size=new_batch_size, shuffle=False, num_workers=0)
+
+    torch.cuda.reset_peak_memory_stats()
+    start_time = time.time()
+    with torch.inference_mode():
+        for inputs, _ in test_loader:
+            inputs = inputs.to(device)
+            _ = model(inputs)  
+    end_time = time.time() 
+    final_max_mem = torch.cuda.max_memory_allocated()
+    
+    logger.info(f"Actual GPU memory usage for inference {new_batch_size} samples per batch with {config['model']}: {final_max_mem / (1024 ** 2):.2f} MB")
+    
+    latency = (end_time - start_time) / len(test_loader)
+    logger.info(f'Inference latency for {new_batch_size} samples per batch with {config["model"]}: {latency * 1000:.2f} ms')
