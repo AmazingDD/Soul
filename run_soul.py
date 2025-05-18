@@ -51,7 +51,7 @@ for k, v in sorted(config.items()):
 
 # reproducibility
 if global_rank == 0:
-    logger.info(f'Reproducibility with random seed {config["seed"]}...')
+    logger.info(f'Reproducibility with random seed {config["seed"]}')
     init_seed(config["seed"])
     logger.info('=' * 50)
 
@@ -97,7 +97,8 @@ surrogate_map = {
     'rect': Rectangular(),
     'sigmoid': FastSigmoid(),
 }
-logger.debug(f'surrogate function: {config["surrogate"]}')
+if global_rank == 0:
+    logger.debug(f'surrogate function: {config["surrogate"]}')
 config['surrogate_function'] = surrogate_map[config['surrogate']]
 
 # TODO 这里最后neuron传的参数肯定只能是config，各个neuron class自己在内部从config提取想要的参数才对
@@ -106,8 +107,9 @@ model = model_map[config['model'].lower()](config)
 model.to(device)
 
 # calculate number of parameters
-n_parameters = sum(p.numel() for p in model.parameters() if hasattr(p, 'requires_grad'))
-logger.info(f"Number of params for model {config['model']}: {n_parameters / 1000:.2f} K")
+if global_rank == 0:
+    n_parameters = sum(p.numel() for p in model.parameters() if hasattr(p, 'requires_grad'))
+    logger.info(f"Number of params for model {config['model']}: {n_parameters / 1000:.2f} K")
 
 if config['is_distributed']:
     model = DDP(model, device_ids=[local_rank])
@@ -190,9 +192,6 @@ for epoch in range(1, config['epochs'] + 1):
 
     scheduler.step()
 
-if config['is_distributed']:
-    dist.destroy_process_group()
-
 # monitor max memory footprint with the best model
 if not config['is_distributed'] or dist.get_rank() == 0:
     best_model_path = os.path.join(config['model_dir'], f'best_{config["model"].lower()}_{config["neuron_type"].lower()}_{config["dataset_name"].lower()}_{config["seed"]}.pt')
@@ -201,7 +200,10 @@ if not config['is_distributed'] or dist.get_rank() == 0:
         best_model_path, 
         map_location='cpu'
     )
-    model.load_state_dict(best_params)
+    if config['is_distributed']:
+        model.module.load_state_dict(best_params)
+    else:
+        model.load_state_dict(best_params)
     logger.debug(f'current device to monitor: {device}')
     model.to(device)
     model.eval()
@@ -222,3 +224,6 @@ if not config['is_distributed'] or dist.get_rank() == 0:
     
     latency = (end_time - start_time) / len(test_loader)
     logger.info(f'Inference latency for {new_batch_size} samples per batch with {config["model"]}: {latency * 1000:.2f} ms')
+
+if config['is_distributed']:
+    dist.destroy_process_group()
