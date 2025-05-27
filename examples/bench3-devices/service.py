@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 import time
 
 from sew_resnet import SewResNet18
+from vgg import SpikingVGG9
 
 app = Flask(__name__)
 
@@ -76,10 +77,13 @@ if __name__ == '__main__':
     else:
         raise ValueError(f'Invalid dataset: {args.dataset}')
 
-    model = SewResNet18(T=T, num_classes=num_classes, input_shape=input_shape)
-    model.load_state_dict(torch.load(f'{args.model_dir}/{args.model}_{args.dataset}_T{T}_ckpt_best.pth', map_location='cpu'))
+    # model = SewResNet18(T=T, num_classes=num_classes, input_shape=input_shape)
+    # model.load_state_dict(torch.load(f'{args.model_dir}/{args.model}_{args.dataset}_T{T}_ckpt_best.pth', map_location='cpu'))
+    # model.to(device)
+    # model.eval()
+    model = SpikingVGG9(T=T,num_classes=num_classes,input_shape=input_shape)
+    # model.load_state_dict(torch.load(f'{args.model_dir}/{args.model}_{args.dataset}_T{T}_ckpt_best.pth', map_location='cpu'))
     model.to(device)
     model.eval()
-
 
     app.run(host='0.0.0.0', port=3000)
