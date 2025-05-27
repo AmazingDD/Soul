@@ -211,6 +211,23 @@ if not config['is_distributed'] or dist.get_rank() == 0:
     new_batch_size = 1
     test_loader = torch.utils.data.DataLoader(test_loader.dataset, batch_size=new_batch_size, shuffle=False, num_workers=0)
 
+    # calculate theoretical energy cost per sample inference
+    logger.info('Counting FLOPs/SOPs for theoretical inference cost')
+    from soul.utils.count_sops import ops_monitor, MODULE_SOP_DICT
+    ops_monitor(model, is_sop=config['sop'])
+    for inputs, _ in tqdm(test_loader, unit='batch', ncols=80):
+        inputs = inputs.to(device)
+        _ = model(inputs)
+
+    total_sops = 0
+    for k, v in MODULE_SOP_DICT.items():
+        total_sops += v
+
+    cost_per_op = 0.9 if config['sop'] else 4.6   # pJ on 45nm hardware
+    logger.info(f"Number of {'SOPs' if config['sop'] else 'FLOPs'} for model {config['model']} inference per {new_batch_size} sample: {total_sops / 1e6:.2f} M, theoretical energy cost: {total_sops * cost_per_op / 1e9:.2f} mj")
+
+    # evluate the maximum actual memory usage for inference
+    logger.info('Monitoring maximum memory usage for inference')
     torch.cuda.reset_peak_memory_stats()
     start_time = time.time()
     with torch.inference_mode():
@@ -225,5 +242,6 @@ if not config['is_distributed'] or dist.get_rank() == 0:
     latency = (end_time - start_time) / len(test_loader)
     logger.info(f'Inference latency for {new_batch_size} samples per batch with {config["model"]}: {latency * 1000:.2f} ms')
 
+# recycle all process
 if config['is_distributed']:
     dist.destroy_process_group()

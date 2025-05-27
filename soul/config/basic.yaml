@@ -5,6 +5,7 @@ state: INFO                      # (str) Logging level.
 log_dir: ./logs/                 # (str) The path of logs.
 data_dir: ~/data/                # (str) The path of input datasets.
 model_dir: ./saved_models/       # (str) The path of saved models from Soul.
+sop: False
 
 # Training Settings
 epochs: 150                      # (int) The number of training epochs.
