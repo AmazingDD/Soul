@@ -9,34 +9,34 @@ MODULE_SOP_DICT = {}
 
 def img2col(X, kernel_size, stride=1, pad=0):
     """
-    将4D输入张量转换为2D列矩阵
-    参数:
-        X: 输入张量，形状为(N, C, H, W)
-        kernel_size: 卷积核大小（整数或元组）
-        stride: 步长（整数或元组）
-        pad: 填充大小
-    返回:
-        2D列矩阵, 形状为(N*out_h*out_w, C*kh*kw)
+    Convert a 4D input tensor into a 2D column matrix (img2col operation).
+    Params:
+        X: Input tensor with shape (N, C, H, W)
+        kernel_size: Convolution kernel size (int or tuple)
+        stride: Stride (int or tuple)
+        pad: Padding size
+    Returns:
+        2D column matrix with shape (N*out_h*out_w, C*kh*kw)
     """
-    # 解析参数
+
     N, C, H, W = X.shape
     kh = kw = kernel_size if isinstance(kernel_size, int) else kernel_size[0]
     sh = sw = stride if isinstance(stride, int) else stride[0]
     
-    # 执行填充
+    # implement padding
     X_pad = np.pad(X, [(0,0), (0,0), (pad, pad), (pad, pad)], mode='constant')
     
-    # 计算输出尺寸
+    # calculate output shape
     H_out = (H + 2*pad - kh) // sh + 1
     W_out = (W + 2*pad - kw) // sw + 1
     
-    # 生成滑动窗口视图
+    # generate sliding window view
     windows = sliding_window_view(X_pad, (kh, kw), axis=(2, 3))
     
-    # 步长切片
+    # slicing by step
     windows = windows[:, :, ::sh, ::sw]
     
-    # 重塑为列矩阵
+    # rebuild column-wise matrix
     cols = windows.reshape(N, C, H_out, W_out, kh*kw)
     cols = cols.transpose(0, 2, 3, 1, 4).reshape(N*H_out*W_out, -1)
     
@@ -44,16 +44,16 @@ def img2col(X, kernel_size, stride=1, pad=0):
 
 def conv_forward_with_sparsity(X, W, b, stride=1, pad=0):
     """
-    使用img2col实现卷积前向传播, 并计算有效计算比例
-    参数:
-        X: 输入数据 (N, C, H, W)
-        W: 卷积核 (F, C, KH, KW)
-        b: 偏置 (F,)
-        stride: 步长
-        pad: 填充
-    返回:
-        output: 卷积结果 (N, F, OH, OW)
-        effective_ratio: 有效计算比例 (0.0-1.0)
+    Implement convolutional forward propagation using img2col and compute the effective computation ratio  
+    Params:
+        X: Input data (N, C, H, W)  
+        W: Convolution kernel (F, C, KH, KW)  
+        b: Bias (F,)  
+        stride: Stride  
+        pad: Padding
+    Returns:
+        output: Convolution result (N, F, OH, OW)  
+        effective_ratio: Effective computation ratio (0.0-1.0)  
     """
     # img2col transformation for input
     cols = img2col(X, W.shape[2:], stride, pad)

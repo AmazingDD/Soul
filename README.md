@@ -40,7 +40,7 @@ TBD
 - [x] 2025.5.18-2025.5.19 mobicom motivation ppt
 - [ ] 2025.5.20-2025.5.31 ACM computing survey V1 shoule be done
 - [x] 2025.5.22-2025.5.23 Edge energy monitor include
-- [ ] 2025.5.22-2025.5.25 wentao FLOPs/SOPs include
+- [x] 2025.5.22-2025.5.25 wentao FLOPs/SOPs include
 - [x] 2025.5.18-2025.5.25 #Param and model size for memory footprint
  
 
