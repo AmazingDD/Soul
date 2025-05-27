@@ -42,6 +42,7 @@ TBD
 - [x] 2025.5.22-2025.5.23 Edge energy monitor include
 - [x] 2025.5.22-2025.5.25 wentao FLOPs/SOPs include
 - [x] 2025.5.18-2025.5.25 #Param and model size for memory footprint
+- [ ] 时间待定 @wentao monitor加上对nn.linear的统计
  
 
 ## Cite
