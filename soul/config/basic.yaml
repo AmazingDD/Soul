@@ -1,10 +1,11 @@
 # Environment Settings
-workers: 4                        # (int) The number of workers processing the data.
-seed: 2025                       # (int) Random seed.
+is_distributed: false      # (bool) Whether to use distributed training.
+workers: 4                       # (int) The number of workers processing the data.
+seed: 42                       # (int) Random seed.
 state: INFO                      # (str) Logging level.
 log_dir: ./logs/                 # (str) The path of logs.
-data_dir: ~/data/                # (str) The path of input datasets.
 model_dir: ./saved_models/       # (str) The path of saved models from Soul.
+data_dir: ./data/                # (str) The path of input datasets.
 sop: False
 
 # Training Settings

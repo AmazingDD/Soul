@@ -126,13 +126,14 @@ def parse_args():
 
 def init_config():
     current_path = os.path.dirname(os.path.realpath(__file__))
-    # load basic yaml
-    overall_init_file = os.path.join(current_path, "../config/basic.yaml")
-    config = yaml.safe_load(open(overall_init_file, 'r', encoding="utf-8"))
-
+    
     # update args
     args = parse_args()
-    config.update(vars(args))
+    config = vars(args)
+    
+    # load basic yaml
+    overall_init_file = os.path.join(current_path, "../config/basic.yaml")
+    config.update(yaml.safe_load(open(overall_init_file, 'r', encoding="utf-8")))
 
     # load model specific yaml
     match = re.match(r'^([a-zA-Z]+)', config['model'])

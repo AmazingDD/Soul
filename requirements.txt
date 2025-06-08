@@ -1,2 +1,5 @@
 colorlog
-spikingjelly
+torch==2.5
+torchvision==1.20
+pyyaml
+numpy==1.26

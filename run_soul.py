@@ -64,7 +64,7 @@ train_dataset, test_dataset, config['input_channels'], config['input_height'], c
     T=config['time_step']
 )
 if config['is_distributed']:
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    train_sampler = torch.utils.data.DistributedSampler(train_dataset)
     # define the batch size per gpu, usually we define the numer of process equal to the number of used gpus
     world_size = dist.get_world_size()
     config['batch_size'] //= world_size
