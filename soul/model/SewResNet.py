@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from copy import deepcopy
 
-from spikingjelly.activation_based import functional
+# from spikingjelly.activation_based import functional
+from soul.neuron import functional
 
 __all__ = ['SEWResNet', 'SEWResNet18', 'SEWResNet34', 'SEWResNet50']
 

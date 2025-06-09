@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+saved_models/
 spikingjelly/
 # C extensions
 *.so

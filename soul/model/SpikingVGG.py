@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from copy import deepcopy
 
-from spikingjelly.activation_based import functional
+from soul.neuron import functional
 
 __all__ = ['VGG', 'SpikingVGG5', 'SpikingVGG9', 'SpikingVGG11', 'SpikingVGG13', 'SpikingVGG16', 'SpikingVGG19']
 
