@@ -3,4 +3,6 @@ torch==2.5
 torchvision==1.20
 pyyaml
 numpy==1.26
-torch>=2.7.1-rc1
+opencv-python
+pandas
+tqdm
