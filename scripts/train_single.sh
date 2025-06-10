@@ -1,3 +1,5 @@
+export CUDA_VISIBLE_DEVICES=0
+
 python run_soul.py \
     --workers 4 \
     --seed 42 \

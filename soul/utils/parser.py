@@ -134,7 +134,6 @@ def init_config():
     # update args
     args = parse_args()
     config.update(vars(args))
-
     # load model specific yaml
     match = re.match(r'^([a-zA-Z]+)', config['model'])
     if match:

@@ -107,7 +107,8 @@ config['neuron'] = neuron_map[config['neuron_type'].lower()](config)
 
 
 model = model_map[config['model'].lower()](config)
-logger.info('\n'+ str(model))
+if global_rank == 0:
+    logger.info('\n'+ str(model))
 model.to(device)
 
 # calculate number of parameters
