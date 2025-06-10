@@ -1,19 +1,25 @@
 import math
-from typing import Callable
 
 import torch
 import torch.nn as nn
 
-from soul.utils import surrogate
 from .LIF import BaseNode
 
 class ParametricLIFNode(BaseNode):
-    def __init__(self, init_tau: float = 2.0, decay_input: bool = False, v_threshold: float = 1.,
-                 v_reset: float = 0., surrogate_function: Callable = surrogate.Sigmoid(),
-                 detach_reset: bool = False, step_mode='m', backend='torch', store_v_seq: bool = False):
+    def __init__(self, config):
+        
+        init_tau = config['init_tau']
+        v_threshold = config['v_threshold']
+        v_reset = config['v_reset']
+        surrogate_function = config['surrogate_function']
+        detach_reset = config['detach_reset']
+        step_mode = 'm'
+        backend = 'torch'
+        store_v_seq = config['store_v_seq']
+
         assert isinstance(init_tau, float) and init_tau > 1.
         super().__init__(v_threshold, v_reset, surrogate_function, detach_reset, step_mode, backend, store_v_seq)
-        self.decay_input = decay_input
+        self.decay_input = config['decay_input']
         init_w = - math.log(init_tau - 1.)
         self.w = nn.Parameter(torch.as_tensor(init_w))
 

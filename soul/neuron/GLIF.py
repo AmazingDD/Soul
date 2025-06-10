@@ -10,44 +10,51 @@ import torch
 import torch.nn as nn
 
 class GatedLIFNode(base.MemoryModule):
-    def __init__(self, T: int, inplane = None,
-                 init_linear_decay = None, init_v_subreset = None, init_tau: float = 0.25, init_v_threshold: float = 0.5, init_conduct: float = 0.5, v_threshold: float=1.0,
-                 surrogate_function: Callable = surrogate.Sigmoid(), step_mode='m', backend='torch'):
-        
+    def __init__(self, config):
+
+        step_mode = 'm'
+        T = config['time_step']
+        init_tau = config['init_tau']
+        init_linear_decay = config['init_linear_decay']
+        init_v_subreset = config['init_v_subreset']
+        init_v_threshold = config['init_v_threshold']
+        init_conduct = config['init_conduct']
+        v_threshold = config['v_threshold']
+
         assert isinstance(init_tau, float) and init_tau < 1.
         assert isinstance(T, int) and T is not None
-        assert isinstance(inplane, int) or inplane is None
+        # assert isinstance(inplane, int) or inplane is None
         assert (isinstance(init_linear_decay, float) and init_linear_decay < 1.) or init_linear_decay is None
         assert (isinstance(init_v_subreset, float) and init_v_subreset < 1.) or init_v_subreset is None
 
         assert step_mode == 'm'
         super().__init__()
-        self.surrogate_function = surrogate_function
-        self.backend = backend
+        self.surrogate_function = config['surrogate_function']
+        self.backend = 'torch'
         self.step_mode = step_mode
         self.T = T
         self.register_memory('v', 0.)
         self.register_memory('u', 0.)
-        self.channel_wise = inplane is not None
-        if self.channel_wise: #channel-wise learnable params
-            self.alpha, self.beta, self.gamma = [nn.Parameter(torch.tensor(0.2 * (np.random.rand(inplane) - 0.5), dtype=torch.float)) for i in range(3)]
-            self.tau = nn.Parameter(- math.log(1 / init_tau - 1) * torch.ones(inplane, dtype=torch.float))
-            self.v_threshold = nn.Parameter(- math.log(1 / init_v_threshold - 1) * torch.ones(inplane, dtype=torch.float))
-            init_linear_decay = init_v_threshold / (T * 2) if init_linear_decay is None else init_linear_decay
-            self.linear_decay = nn.Parameter(- math.log(1 / init_linear_decay - 1) * torch.ones(inplane, dtype=torch.float))
-            init_v_subreset = init_v_threshold if init_v_subreset is None else init_v_subreset
-            self.v_subreset = nn.Parameter(- math.log(1 / init_v_subreset - 1) * torch.ones(inplane, dtype=torch.float))
-            self.conduct = nn.Parameter(- math.log(1 / init_conduct - 1) * torch.ones((T, inplane), dtype=torch.float))
+        # self.channel_wise = inplane is not None
+        # if self.channel_wise: #channel-wise learnable params
+        #     self.alpha, self.beta, self.gamma = [nn.Parameter(torch.tensor(0.2 * (np.random.rand(inplane) - 0.5), dtype=torch.float)) for i in range(3)]
+        #     self.tau = nn.Parameter(- math.log(1 / init_tau - 1) * torch.ones(inplane, dtype=torch.float))
+        #     self.v_threshold = nn.Parameter(- math.log(1 / init_v_threshold - 1) * torch.ones(inplane, dtype=torch.float))
+        #     init_linear_decay = init_v_threshold / (T * 2) if init_linear_decay is None else init_linear_decay
+        #     self.linear_decay = nn.Parameter(- math.log(1 / init_linear_decay - 1) * torch.ones(inplane, dtype=torch.float))
+        #     init_v_subreset = init_v_threshold if init_v_subreset is None else init_v_subreset
+        #     self.v_subreset = nn.Parameter(- math.log(1 / init_v_subreset - 1) * torch.ones(inplane, dtype=torch.float))
+        #     self.conduct = nn.Parameter(- math.log(1 / init_conduct - 1) * torch.ones((T, inplane), dtype=torch.float))
 
-        else:   #layer-wise learnable params
-            self.alpha, self.beta, self.gamma = [nn.Parameter(torch.tensor(0.2 * (np.random.rand() - 0.5), dtype=torch.float)) for i in range(3)]
-            self.tau = nn.Parameter(torch.tensor(- math.log(1 / init_tau - 1), dtype=torch.float))
-            self.v_threshold = nn.Parameter(torch.tensor(- math.log(1 / init_v_threshold - 1), dtype=torch.float))
-            init_linear_decay = init_v_threshold / (T * 2) if init_linear_decay is None else init_linear_decay
-            self.linear_decay = nn.Parameter(torch.tensor(- math.log(1 / init_linear_decay - 1), dtype=torch.float))
-            init_v_subreset = init_v_threshold if init_v_subreset is None else init_v_subreset
-            self.v_subreset = nn.Parameter(torch.tensor(- math.log(1 / init_v_subreset - 1), dtype=torch.float))
-            self.conduct = nn.Parameter(- math.log(1 / init_conduct - 1) * torch.ones(T, dtype=torch.float))
+        # else:   #layer-wise learnable params
+        self.alpha, self.beta, self.gamma = [nn.Parameter(torch.tensor(0.2 * (np.random.rand() - 0.5), dtype=torch.float)) for i in range(3)]
+        self.tau = nn.Parameter(torch.tensor(- math.log(1 / init_tau - 1), dtype=torch.float))
+        self.v_threshold = nn.Parameter(torch.tensor(- math.log(1 / init_v_threshold - 1), dtype=torch.float))
+        init_linear_decay = init_v_threshold / (T * 2) if init_linear_decay is None else init_linear_decay
+        self.linear_decay = nn.Parameter(torch.tensor(- math.log(1 / init_linear_decay - 1), dtype=torch.float))
+        init_v_subreset = init_v_threshold if init_v_subreset is None else init_v_subreset
+        self.v_subreset = nn.Parameter(torch.tensor(- math.log(1 / init_v_subreset - 1), dtype=torch.float))
+        self.conduct = nn.Parameter(- math.log(1 / init_conduct - 1) * torch.ones(T, dtype=torch.float))
 
     @property
     def supported_backends(self):

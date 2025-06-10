@@ -1,6 +1,7 @@
-v_threshold: 1.0       # (float) firing threshold for neuron
+v_threshold: 1.0              # (float) firing threshold for neuron
 surrogate: atan               # (str) surrogate function for back-propagation
-T: 4
 init_tau: 0.25
 init_v_threshold: 0.5
 init_conduct: 0.5
+init_linear_decay: ~          # (float)
+init_v_subreset: ~            # (float)

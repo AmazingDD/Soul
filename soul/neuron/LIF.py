@@ -1,14 +1,10 @@
 from abc import abstractmethod
-from typing import Callable
 import torch
-import torch.nn as nn
 from soul.neuron import base
-from soul.utils import surrogate
 
 class BaseNode(base.MemoryModule):
-    def __init__(self, v_threshold: float = 1., v_reset: float = 0.,
-                 surrogate_function: Callable = surrogate.Sigmoid(), detach_reset: bool = False,
-                 step_mode='s', backend='torch', store_v_seq: bool = False):
+    def __init__(self, v_threshold, v_reset, surrogate_function, detach_reset=False,
+                 step_mode='s', backend='torch', store_v_seq=False):
         assert isinstance(v_reset, float) or v_reset is None
         assert isinstance(v_threshold, float)
         assert isinstance(detach_reset, bool)
@@ -106,12 +102,20 @@ class BaseNode(base.MemoryModule):
 
 
 class LIFNode(BaseNode):
-    def __init__(self, tau:float=2.0, decay_input: bool=True, v_threshold: float = 1., v_reset: float = 0.,
-                 surrogate_function: Callable = surrogate.Sigmoid(), detach_reset: bool = False,
-                 step_mode='m', backend='torch', store_v_seq: bool = False):
+    def __init__(self, config):
+        
+        v_threshold = config['v_threshold']
+        v_reset = config['v_reset']
+        detach_reset = config['detach_reset']
+        backend = 'torch'
+        step_mode = 'm'
+        store_v_seq = config['store_v_seq']
+        surrogate_function = config['surrogate_function']
+        
         super().__init__(v_threshold, v_reset, surrogate_function, detach_reset, step_mode, backend, store_v_seq)
-        self.tau = tau
-        self.decay_input = decay_input
+        
+        self.tau = config['tau']
+        self.decay_input = config['decay_input']
 
     def neuronal_charge(self, x: torch.Tensor):
         if self.decay_input:

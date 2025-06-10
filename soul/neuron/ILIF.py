@@ -49,9 +49,13 @@ class ILIF_BaseNode(MemoryModule):
 
 
 class ILIFNode(ILIF_BaseNode):
-    def __init__(self, v_threshold: float = 1., v_reset: float = 0.,
-                 surrogate_function: Callable = Quant(), detach_reset: bool = False,
-                 step_mode='s', backend='torch', tau: float = 2., store_v_seq: bool = False):
+    def __init__(self, config):
+        
+        v_threshold = config['v_threshold']
+        v_reset = config['v_reset']
+        surrogate_function = config['surrogate_function']
+        detach_reset = config['detach_reset']
+
         super().__init__(v_threshold, v_reset, surrogate_function, detach_reset)
         
     @property

@@ -1,2 +1,4 @@
-v_threshold: 1.0       # (float) firing threshold for neuron
+v_threshold: 1.0            # (float) firing threshold for neuron
+v_reset: 0.0
 surrogate: quant
+detach_reset: true

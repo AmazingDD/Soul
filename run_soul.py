@@ -103,13 +103,7 @@ surrogate_map = {
 if global_rank == 0:
     logger.debug(f'surrogate function: {config["surrogate"]}')
 config['surrogate_function'] = surrogate_map[config['surrogate']]
-
-neuron_params = {}
-optional_params = ['v_threshold', 'surrogate_function', 'v_reset', 'decay_input', 'tau', 'init_tau', 'detach_reset', 'store_v_seq', 'T', 'init_v_threshold', 'init_conduct']
-for param_name in optional_params:
-    if param_name in config:
-        neuron_params[param_name] = config[param_name]
-config['neuron'] = neuron_map[config['neuron_type'].lower()](**neuron_params)
+config['neuron'] = neuron_map[config['neuron_type'].lower()](config) 
 
 
 model = model_map[config['model'].lower()](config)
@@ -241,7 +235,7 @@ if not config['is_distributed'] or dist.get_rank() == 0:
     torch.cuda.reset_peak_memory_stats()
     start_time = time.time()
     with torch.inference_mode():
-        for inputs, _ in test_loader:
+        for inputs, _ in tqdm(test_loader, unit='batch', ncols=80):
             inputs = inputs.to(device)
             _ = model(inputs)  
     end_time = time.time() 
