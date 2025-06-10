@@ -1,7 +1,7 @@
 v_threshold: 1.0              # (float) firing threshold for neuron
 surrogate: atan               # (str) surrogate function for back-propagation
-tau: 2.0
-decay_input: true
-v_reset: 0.0
-detach_reset: true
-store_v_seq: false
+tau: 2.0                      # (float) membrane time constant
+decay_input: true             # (bool) whether to decay input
+v_reset: 0.0                  # (float) reset value for membrane potential
+detach_reset: true            # (bool) whether to detach reset from computation graph
+store_v_seq: false            # (bool) whether to store membrane potential sequence

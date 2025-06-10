@@ -1,6 +1,6 @@
 v_threshold: 1.0                # (float) firing threshold for neuron
-surrogate: rectangle
-tau: 2.0
-decay_input: false
-v_reset: 0.0
-detach_reset: true
+surrogate: rectangle            # (str) surrogate gradient function
+tau: 2.0                        # (float) membrane time constant
+decay_input: false              # (bool) whether to decay input
+v_reset: 0.0                    # (float) reset value for membrane potential
+detach_reset: true              # (bool) whether to detach reset from computation graph

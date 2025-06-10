@@ -1,7 +1,7 @@
 v_threshold: 1.0              # (float) firing threshold for neuron
 surrogate: atan               # (str) surrogate function for back-propagation
-init_tau: 0.25
-init_v_threshold: 0.5
-init_conduct: 0.5
+init_tau: 0.25                # (float) initial value for membrane time constant
+init_v_threshold: 0.5         # (float) initial value for firing threshold
+init_conduct: 0.5             # (float) initial value for conductance
 init_linear_decay: ~          # (float)
 init_v_subreset: ~            # (float)
