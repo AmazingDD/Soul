@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from copy import deepcopy
 
-from spikingjelly.activation_based import functional
+from soul.neuron import functional
 
 __all__ = ['Spikformer', 'Spikformer2', 'Spikformer4', 'Spikformer8']
 
