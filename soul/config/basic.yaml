@@ -16,3 +16,6 @@ scheduler: cosine                # (str) The name of optimizer scheduler
 learning_rate: 0.0001            # (float) Learning rate.
 weight_decay: 0.0                # (float) The weight decay value (L2 penalty) for optimizers.
 momentum: 0.9                    # (float) inertia coefficient for optimizer
+
+# neuron
+neuron_type: clif

@@ -3,7 +3,7 @@ from typing import Callable
 import torch
 import torch.nn as nn
 from soul.neuron import base
-from soul.neuron import surrogate
+from soul.utils import surrogate
 import math
 
 class BaseNode(base.MemoryModule):
@@ -124,7 +124,7 @@ class ParametricLIFNode(BaseNode):
     def __init__(self, init_tau: float = 2.0, decay_input: bool = False, v_threshold: float = 1.,
                  v_reset: float = 0., surrogate_function: Callable = surrogate.Sigmoid(),
                  detach_reset: bool = False, step_mode='m', backend='torch', store_v_seq: bool = False):
-        # assert isinstance(init_tau, float) and init_tau > 1.
+        assert isinstance(init_tau, float) and init_tau > 1.
         super().__init__(v_threshold, v_reset, surrogate_function, detach_reset, step_mode, backend, store_v_seq)
         self.decay_input = decay_input
         init_w = - math.log(init_tau - 1.)

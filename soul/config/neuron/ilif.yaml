@@ -1,0 +1,2 @@
+v_threshold: 1.0       # (float) firing threshold for neuron
+surrogate: quant

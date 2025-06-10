@@ -2,9 +2,9 @@ import math
 import numpy as np
 
 from typing import Callable
-from spikingjelly.activation_based import surrogate
+from soul.utils import surrogate
 
-from . import base
+from soul.neuron import base
 
 import torch
 import torch.nn as nn
@@ -84,4 +84,15 @@ class GatedLIFNode(base.MemoryModule):
             spike = self.neuronal_fire()
             self.v = self.u
             y_seq.append(spike)
-        return torch.stack(y_seq).squeeze()
+        ret = torch.stack(y_seq)
+        '''
+        print(ret.shape) 
+        torch.Size([4, 128, 128, 16, 16])
+        torch.Size([4, 128, 128, 16, 16])
+        torch.Size([4, 128, 256, 8, 8])
+        torch.Size([4, 128, 256, 8, 8])
+        torch.Size([4, 128, 256, 8, 8])
+        torch.Size([4, 128, 2048, 1, 1])
+        torch.Size([4, 128, 2048, 1, 1]
+        '''
+        return ret

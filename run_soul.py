@@ -96,20 +96,30 @@ surrogate_map = {
     'erf': Erf(),
     'rect': Rectangular(),
     'sigmoid': FastSigmoid(),
+    'quant': Quant(),
+    'quant4': Quant4(),
+    'rectangle': Rectangle(),
 }
 if global_rank == 0:
     logger.debug(f'surrogate function: {config["surrogate"]}')
 config['surrogate_function'] = surrogate_map[config['surrogate']]
 
-# TODO 这里最后neuron传的参数肯定只能是config，各个neuron class自己在内部从config提取想要的参数才对
-config['neuron'] = neuron_map[config['neuron_type'].lower()](surrogate_function=config['surrogate_function'], v_threshold=config['membrane_threshold'])
+neuron_params = {}
+optional_params = ['v_threshold', 'surrogate_function', 'v_reset', 'decay_input', 'tau', 'init_tau', 'detach_reset', 'store_v_seq', 'T', 'init_v_threshold', 'init_conduct']
+for param_name in optional_params:
+    if param_name in config:
+        neuron_params[param_name] = config[param_name]
+config['neuron'] = neuron_map[config['neuron_type'].lower()](**neuron_params)
+
+
 model = model_map[config['model'].lower()](config)
+logger.info('\n'+ str(model))
 model.to(device)
 
 # calculate number of parameters
 if global_rank == 0:
     n_parameters = sum(p.numel() for p in model.parameters() if hasattr(p, 'requires_grad'))
-    logger.info(f"Number of params for model {config['model']}: {n_parameters / 1000:.2f} K")
+    logger.info(f"Number of params for model {config['model']}: {n_parameters / 1e6:.2f} M")
 
 if config['is_distributed']:
     model = DDP(model, device_ids=[local_rank])

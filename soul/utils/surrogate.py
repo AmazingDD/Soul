@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 __all__ = [
-    'PieceWiseQuadratic', 'PieceWiseExp', 'ATan', 'FastSigmoid', 'SoftSign', 
-    'SuperSpike', 'Erf', 'QPseudoSpike', 'Rectangular'
+    'PieceWiseQuadratic', 'PieceWiseExp', 'ATan', 'Sigmoid', 'FastSigmoid', 'SoftSign', 
+    'SuperSpike', 'Erf', 'QPseudoSpike', 'Rectangular', 'Quant', 'Quant4', 'Rectangle',
 ]
 
 class SurrogateFunctionBase(nn.Module):
@@ -68,6 +68,41 @@ class Rectangular(SurrogateFunctionBase):
     def backward(grad_output, x, alpha):
         return rectangular_backward(grad_output, x, alpha)[0]
 
+@torch.jit.script
+def sigmoid_backward(grad_output: torch.Tensor, x: torch.Tensor, alpha: float):
+    sgax = (x * alpha).sigmoid_()
+    return grad_output * (1. - sgax) * sgax * alpha, None
+
+
+class sigmoid(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        if x.requires_grad:
+            ctx.save_for_backward(x)
+            ctx.alpha = alpha
+        return heaviside(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return sigmoid_backward(grad_output, ctx.saved_tensors[0], ctx.alpha)
+
+
+class Sigmoid(SurrogateFunctionBase):
+    def __init__(self, alpha=4.0, spiking=True):
+        super().__init__(alpha, spiking)
+
+    @staticmethod
+    def spiking_function(x, alpha):
+        return sigmoid.apply(x, alpha)
+
+    @staticmethod
+    @torch.jit.script
+    def primitive_function(x: torch.Tensor, alpha: float):
+        return (x * alpha).sigmoid()
+
+    @staticmethod
+    def backward(grad_output, x, alpha):
+        return sigmoid_backward(grad_output, x, alpha)[0]
     
 @torch.jit.script
 def atan_backward(grad_output: torch.Tensor, x: torch.Tensor, alpha: float):
@@ -347,3 +382,87 @@ class QPseudoSpike(SurrogateFunctionBase):
         return mask_nonnegative - mask_sign * (0.5 * ((1. + 2. / (alpha - 1.) * x * mask_sign).pow_(1. - alpha)))
 
 
+class quant4(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, i, min_value=0, max_value=4): #1111
+        ctx.min = min_value
+        ctx.max = max_value
+        ctx.save_for_backward(i)
+        return torch.round(torch.clamp(i, min=min_value, max=max_value))
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_output.clone()
+        i, = ctx.saved_tensors
+        grad_input[i < ctx.min] = 0
+        grad_input[i > ctx.max] = 0
+        return grad_input, None, None
+
+class Quant4(SurrogateFunctionBase):
+    def __init__(self, alpha=4.0, spiking=True):
+        super().__init__(alpha, spiking)
+    @staticmethod
+    def spiking_function(x, alpha):
+         return quant4.apply(x) / 4
+    @staticmethod
+    def primitive_function(x: torch.Tensor, alpha):
+        return (x * alpha).sigmoid()
+
+
+class quant(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, i, min_value=0, max_value=8): #1111
+        ctx.min = min_value
+        ctx.max = max_value
+        ctx.save_for_backward(i)
+        return torch.round(torch.clamp(i, min=min_value, max=max_value))
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_output.clone()
+        i, = ctx.saved_tensors
+        grad_input[i < ctx.min] = 0
+        grad_input[i > ctx.max] = 0
+        return grad_input, None, None
+
+class Quant(SurrogateFunctionBase):
+    def __init__(self, alpha=4.0, spiking=True):
+        super().__init__(alpha, spiking)
+    @staticmethod
+    def spiking_function(x, alpha):
+         return quant.apply(x)
+    @staticmethod
+    def primitive_function(x: torch.Tensor, alpha):
+        return (x * alpha).sigmoid()
+    
+
+class rectangle(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, vth):
+        if x.requires_grad:
+            ctx.save_for_backward(x)
+            ctx.vth = vth
+        return heaviside(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_x = None
+        if ctx.needs_input_grad[0]:
+            x = ctx.saved_tensors[0]
+            mask1 = (x.abs() > ctx.vth / 2)
+            mask_ = mask1.logical_not()
+            grad_x = grad_output * x.masked_fill(mask_, 1. / ctx.vth).masked_fill(mask1, 0.)
+        return grad_x, None
+
+class Rectangle(SurrogateFunctionBase):
+    def __init__(self, alpha=1.0, spiking=True):
+        super().__init__(alpha, spiking)
+
+    @staticmethod
+    def spiking_function(x, alpha):
+        return rectangle.apply(x, alpha)
+
+    @staticmethod
+    def primitive_function(x: torch.Tensor, alpha):
+        return torch.min(torch.max(1. / alpha * x, 0.5), -0.5)
+    

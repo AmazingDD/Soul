@@ -2,72 +2,11 @@ from typing import Callable
 
 import torch
 from torch import nn
-from spikingjelly.activation_based.neuron import LIFNode as LIFNode_sj
-from spikingjelly.activation_based.neuron import ParametricLIFNode as PLIFNode_sj
-from spikingjelly.activation_based.surrogate import SurrogateFunctionBase, heaviside
+from soul.neuron.basenode import LIFNode
+from soul.utils.surrogate import Rectangle
 
 
-class rectangle(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, x, vth):
-        if x.requires_grad:
-            ctx.save_for_backward(x)
-            ctx.vth = vth
-        return heaviside(x)
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        grad_x = None
-        if ctx.needs_input_grad[0]:
-            x = ctx.saved_tensors[0]
-            mask1 = (x.abs() > ctx.vth / 2)
-            mask_ = mask1.logical_not()
-            grad_x = grad_output * x.masked_fill(mask_, 1. / ctx.vth).masked_fill(mask1, 0.)
-        return grad_x, None
-
-
-class Rectangle(SurrogateFunctionBase):
-    def __init__(self, alpha=1.0, spiking=True):
-        super().__init__(alpha, spiking)
-
-    @staticmethod
-    def spiking_function(x, alpha):
-        return rectangle.apply(x, alpha)
-
-    @staticmethod
-    def primitive_function(x: torch.Tensor, alpha):
-        return torch.min(torch.max(1. / alpha * x, 0.5), -0.5)
-
-
-# multistep torch version
-class CLIFSpike(nn.Module):
-    def __init__(self, tau: float):
-        super(CLIFSpike, self).__init__()
-        # the symbol is corresponding to the paper
-        # self.spike_func = surrogate_function
-        self.spike_func = Rectangle()
-
-        self.v_th = 1.
-        self.gamma = 1 - 1. / tau
-
-    def forward(self, x_seq):
-        # x_seq.shape should be [T, N, *]
-        _spike = []
-        u = 0
-        m = 0
-        T = x_seq.shape[0]
-        for t in range(T):
-            u = self.gamma * u + x_seq[t, ...]
-            spike = self.spike_func(u - self.v_th)
-            _spike.append(spike)
-            m = m * torch.sigmoid_((1. - self.gamma) * u) + spike
-            u = u - spike * (self.v_th + torch.sigmoid_(m))
-        # self.pre_spike_mem = torch.stack(_mem)
-        return torch.stack(_spike, dim=0)
-
-
-# spikingjelly single step version
-class ComplementaryLIFNeuron(LIFNode_sj):
+class ComplementaryLIFNeuron(LIFNode):
     def __init__(self, tau: float = 2., decay_input: bool = False, v_threshold: float = 1.,
                  v_reset: float = None, surrogate_function: Callable = Rectangle(),
                  detach_reset: bool = False, **kwargs):
@@ -131,44 +70,3 @@ class MultiStepCLIFNeuron(ComplementaryLIFNeuron):
         spike_seq = torch.cat(spike_seq, 0)
         self.v_seq = torch.cat(self.v_seq, 0)
         return spike_seq
-
-
-class ReLU(nn.Module):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def forward(self, x):
-        return torch.relu(x)
-
-
-class BPTTNeuron(LIFNode_sj):
-    def __init__(self, tau: float = 2., decay_input: bool = False, v_threshold: float = 1.,
-                 v_reset: float = None, surrogate_function: Callable = Rectangle(),
-                 detach_reset: bool = False, **kwargs):
-        super().__init__(tau, decay_input, v_threshold, v_reset, surrogate_function, detach_reset)
-
-
-class PLIFNeuron(PLIFNode_sj):
-    def __init__(self, tau: float = 2., decay_input: bool = False, v_threshold: float = 1.,
-                 v_reset: float = None, surrogate_function: Callable = None,
-                 detach_reset: bool = False, **kwargs):
-        super().__init__(tau, decay_input, v_threshold, v_reset, surrogate_function, detach_reset)
-
-
-if __name__ == '__main__':
-    T = 8
-    x_input = torch.rand((T, 3, 32, 32)) * 1.2
-    clif = ComplementaryLIFNeuron()
-    clif_m = MultiStepCLIFNeuron()
-
-    s_list = []
-    for t in range(T):
-        s = clif(x_input[t])
-        s_list.append(s)
-
-    s_list = torch.stack(s_list, dim=0)
-    s_output = clif_m(x_input)
-
-    print(s_list.mean())
-    print(s_output.mean())
-    assert torch.sum(s_output - torch.Tensor(s_list)) == 0
