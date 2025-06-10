@@ -31,7 +31,7 @@ def parse_args():
         "--data_dir", 
         "-data_dir", 
         type=str, 
-        default='~/data/', 
+        default='~/data/cifar10', 
         help="path for input datasets"
     )
     parser.add_argument(
@@ -127,13 +127,13 @@ def parse_args():
 def init_config():
     current_path = os.path.dirname(os.path.realpath(__file__))
     
-    # update args
-    args = parse_args()
-    config = vars(args)
-    
     # load basic yaml
     overall_init_file = os.path.join(current_path, "../config/basic.yaml")
-    config.update(yaml.safe_load(open(overall_init_file, 'r', encoding="utf-8")))
+    config = yaml.safe_load(open(overall_init_file, 'r', encoding="utf-8"))
+    
+    # update args
+    args = parse_args()
+    config.update(vars(args))
 
     # load model specific yaml
     match = re.match(r'^([a-zA-Z]+)', config['model'])

@@ -48,7 +48,7 @@ class ILIF_BaseNode(MemoryModule):
         return spike / 8
 
 
-class ILIF(ILIF_BaseNode):
+class ILIFNode(ILIF_BaseNode):
     def __init__(self, v_threshold: float = 1., v_reset: float = 0.,
                  surrogate_function: Callable = Quant(), detach_reset: bool = False,
                  step_mode='s', backend='torch', tau: float = 2., store_v_seq: bool = False):

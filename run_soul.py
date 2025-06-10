@@ -85,9 +85,9 @@ model_map = {
 neuron_map = {
     "lif": LIFNode,
     "plif": ParametricLIFNode,
-    "clif": MultiStepCLIFNeuron,
+    "clif": CLIFNode,
     "glif": GatedLIFNode,
-    "ilif": ILIF,
+    "ilif": ILIFNode,
     # TODO
 }
 

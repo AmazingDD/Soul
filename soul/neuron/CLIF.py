@@ -1,8 +1,7 @@
 from typing import Callable
 
 import torch
-from torch import nn
-from soul.neuron.basenode import LIFNode
+from soul.neuron.LIF import LIFNode
 from soul.utils.surrogate import Rectangle
 
 
@@ -53,7 +52,7 @@ class ComplementaryLIFNeuron(LIFNode):
 
 
 # spikingjelly multiple step version
-class MultiStepCLIFNeuron(ComplementaryLIFNeuron):
+class CLIFNode(ComplementaryLIFNeuron):
     def __init__(self, tau: float = 2., decay_input: bool = False, v_threshold: float = 1.,
                  v_reset: float = None, surrogate_function: Callable = Rectangle(),
                  detach_reset: bool = False, **kwargs):
