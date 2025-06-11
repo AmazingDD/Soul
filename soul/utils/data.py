@@ -13,6 +13,8 @@ from torchvision.io import read_image
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 
+from soul.utils.dvs_folder import CIFAR10DVS, DVS128Gesture
+
 __all__ = ['load_data', 'get_loader']
 
 def split_to_train_test_set(train_ratio: float, origin_dataset: torch.utils.data.Dataset, num_classes: int, random_split: bool = False):
@@ -225,8 +227,6 @@ def load_data(dataset_type, dataset_dir, T=4):
         H, W = 64, 64
         num_classes = 10
 
-        from spikingjelly.datasets.cifar10_dvs import CIFAR10DVS
-
         transform_train = DVStransform(
             transform=transforms.Compose([transforms.Resize(size=(H, W), antialias=True)])
         )
@@ -268,7 +268,6 @@ def load_data(dataset_type, dataset_dir, T=4):
         H, W = 64, 64
         num_classes = 11
 
-        from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
         transform_train = DVStransform(transform=transforms.Compose([transforms.Resize(size=(H, W), antialias=True)]))
         transform_test = DVStransform(transform=transforms.Resize(size=(H, W), antialias=True))
 

@@ -1,3 +1,6 @@
+'''
+Extraction from spikingjelly
+'''
 import torch
 import torch.nn as nn
 import copy

@@ -1,3 +1,6 @@
+'''
+Extraction from spikingjelly
+'''
 import torch.nn as nn
 from soul.neuron import base
 import logging
