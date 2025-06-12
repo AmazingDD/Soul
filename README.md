@@ -33,7 +33,6 @@ TBD
 
 ## TODO List
 
-- [√] 2025.5.17-2025.5.25 解除dvs数据处理对SJ的依赖
 - [ ] 时间待定 @wentao monitor加上对nn.linear的统计
  
 
