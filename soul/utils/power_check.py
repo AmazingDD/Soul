@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-__all__ = ['PowerLogger']
+__all__ = ['PowerLogger', 'getDevice', 'printFullReport']
 
 """
 [before monitoring]
@@ -388,3 +388,21 @@ if __name__ == "__main__":
     pl.showDataTraces()
     nodename = device_nodes[pl.device][2][0]
     pl.showMostCommonPowerValue(nodename)
+
+    '''
+    printFullReport(getDevice())
+    pl = PowerLogger(interval=0.05)
+    pl.start()
+    time.sleep(5)
+    pl.recordEvent(name='Process Start')
+
+    # [Your Code for testing]
+
+    time.sleep(5)
+    pl.stop()
+    filename = f'./'
+    pl.showDataTraces(filename=filename)
+    print(str(pl.eventLog))
+    printFullReport(getDevice())
+
+    '''
