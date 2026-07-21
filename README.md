@@ -1,3 +1,5 @@
+
+<!--
 ---
 
 <p align="center">
@@ -7,6 +9,8 @@
 ---
 
 *“I have always been convinced that the only way to get artificial intelligence to work is to do the computation in a way similar to the human brain.”——Geoffrey Hinton*
+
+-->
 
 ## Overview
 
@@ -111,27 +115,23 @@ For each dataset, we provide both a **Research/Reference Link** (to a paper or d
 
 > **Note:** After downloading and extracting the datasets, you only need to point the `data_dir` argument to the root directory of the dataset in your configuration (or command-line). SOUL will automatically process the raw data in that directory and run accordingly.
 
-
+<!-- 
 ## Cite
 
 If you find SOUL useful for your research or development, please cite the following papers:
 
 ```
-
-```
-
-**This code may not be used, copied, or distributed without prior written permission from the authors.**
-
-
-
-<!-- ```
 @article{deng2025edge,
   title={Edge Intelligence with Spiking Neural Networks},
   author={Deng, Shuiguang and Yu, Di and Lv, Changze and Du, Xin and Jiang, Linshan and Zhao, Xiaofan and Tong, Wentao and Zheng, Xiaoqing and Fang, Weijia and Zhao, Peng and others},
   journal={arXiv preprint arXiv:2507.14069},
   year={2025}
 }
-``` -->
+```
+
+**This code may not be used, copied, or distributed without prior written permission from the authors.**
+
+ -->
 
 
 
