@@ -20,7 +20,7 @@
 <img src="assets/overview.png" align="center" width="100%" style="margin: 0 auto">
 </p>
 
-To support the study of recent advances in neuromorphic edge sensing, we introduce SOUL (**S**NN-based **O**pen so**U**rce too**L**kit), an open-source benchmarking toolkit for building SNN applications. SOUL provides a unified and efficient framework tailored for both research and edge deployment, enabling reproducible implementation of neuromorphic computing algorithms and rapid development of new models with minimal overhead. By design, SOUL facilitates seamless experimentation with SNNs within a comprehensive environment that bridges academic research and real-world edge intelligence.
+To support the study of recent advances in neuromorphic edge sensing, we introduce SOUL-NeuSim, an open-source benchmarking toolkit for building SNN applications. SOUL-NeuSim provides a unified and efficient framework tailored for both research and edge deployment, enabling reproducible implementation of neuromorphic computing algorithms and rapid development of new models with minimal overhead. By design, SOUL-NeuSim facilitates seamless experimentation with SNNs within a comprehensive environment that bridges academic research and real-world edge intelligence.
 
 <p align="center">
 <img src="assets/workflow.png" align="center" width="100%" style="margin: 0 auto">
@@ -30,12 +30,12 @@ To support the study of recent advances in neuromorphic edge sensing, we introdu
 
 You can run the library directly from the command line. For example:
 
-- Run `Soul` on a single GPU (default settings):
+- Run `SOUL-NeuSim` on a single GPU (default settings):
     ```shell
     CUDA_VISIBLE_DEVICES=[GPU-ID] python run_soul.py -dataset=[Dataset Name] -data_dir=[Dataset Directory] -T=[Number of timesteps] -m=[Model Name] -n=[Neuron Type]
     ```
 
-- Run `Soul` on multiple GPUs (default settings):
+- Run `SOUL-NeuSim` on multiple GPUs (default settings):
     ```shell
     CUDA_VISIBLE_DEVICES=[GPU-ID1],[GPU-ID2],... torchrun --nproc_per_node=[Number of used GPU] run_soul.py -dataset=[Dataset Name] -data_dir=[Dataset Directory] -T=[Number of timesteps] -m=[Model Name] -n=[Neuron Type]
     ```
@@ -113,12 +113,12 @@ For each dataset, we provide both a **Research/Reference Link** (to a paper or d
 
 <br>
 
-> **Note:** After downloading and extracting the datasets, you only need to point the `data_dir` argument to the root directory of the dataset in your configuration (or command-line). SOUL will automatically process the raw data in that directory and run accordingly.
+> **Note:** After downloading and extracting the datasets, you only need to point the `data_dir` argument to the root directory of the dataset in your configuration (or command-line). SOUL-NeuSim will automatically process the raw data in that directory and run accordingly.
 
 <!-- 
 ## Cite
 
-If you find SOUL useful for your research or development, please cite the following papers:
+If you find SOUL-NeuSim useful for your research or development, please cite the following papers:
 
 ```
 @article{deng2025edge,
@@ -137,4 +137,4 @@ If you find SOUL useful for your research or development, please cite the follow
 
 ## License
 
-SOUL is released under the [Apache-2.0 License](./LICENSE). All datasets used in this project are intended for academic research purposes only.
+SOUL-NeuSim is released under the [Apache-2.0 License](./LICENSE). All datasets used in this project are intended for academic research purposes only.
