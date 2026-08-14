@@ -20,7 +20,7 @@
 <img src="assets/overview.png" align="center" width="100%" style="margin: 0 auto">
 </p>
 
-To support the study of recent advances in neuromorphic edge sensing, we introduce SOUL-NeuSim, an open-source benchmarking toolkit for building SNN applications. SOUL-NeuSim provides a unified and efficient framework tailored for both research and edge deployment, enabling reproducible implementation of neuromorphic computing algorithms and rapid development of new models with minimal overhead. By design, SOUL-NeuSim facilitates seamless experimentation with SNNs within a comprehensive environment that bridges academic research and real-world edge intelligence.
+To support research on recent advances in neuromorphic edge sensing, we introduce Soul, an open-source benchmarking toolkit for building SNN applications. Soul provides a unified and efficient framework tailored for both research and edge deployment, enabling reproducible implementation of neuromorphic computing algorithms and rapid development of new models with minimal overhead. By design, Soul facilitates seamless experimentation with SNNs within a comprehensive environment that bridges academic research and real-world edge intelligence.
 
 <p align="center">
 <img src="assets/workflow.png" align="center" width="100%" style="margin: 0 auto">
@@ -30,12 +30,12 @@ To support the study of recent advances in neuromorphic edge sensing, we introdu
 
 You can run the library directly from the command line. For example:
 
-- Run `SOUL-NeuSim` on a single GPU (default settings):
+- Run `Soul` on a single GPU (default settings):
     ```shell
     CUDA_VISIBLE_DEVICES=[GPU-ID] python run_soul.py -dataset=[Dataset Name] -data_dir=[Dataset Directory] -T=[Number of timesteps] -m=[Model Name] -n=[Neuron Type]
     ```
 
-- Run `SOUL-NeuSim` on multiple GPUs (default settings):
+- Run `Soul` on multiple GPUs (default settings):
     ```shell
     CUDA_VISIBLE_DEVICES=[GPU-ID1],[GPU-ID2],... torchrun --nproc_per_node=[Number of used GPU] run_soul.py -dataset=[Dataset Name] -data_dir=[Dataset Directory] -T=[Number of timesteps] -m=[Model Name] -n=[Neuron Type]
     ```
@@ -113,28 +113,31 @@ For each dataset, we provide both a **Research/Reference Link** (to a paper or d
 
 <br>
 
-> **Note:** After downloading and extracting the datasets, you only need to point the `data_dir` argument to the root directory of the dataset in your configuration (or command-line). SOUL-NeuSim will automatically process the raw data in that directory and run accordingly.
+> **Note:** After downloading and extracting the datasets, you only need to point the `data_dir` argument to the root directory of the dataset in your configuration (or command-line). Soul will automatically process the raw data in that directory and run accordingly.
 
-<!-- 
+
 ## Cite
 
-If you find SOUL-NeuSim useful for your research or development, please cite the following papers:
+If you find Soul useful for your research or development, please cite the following papers:
 
 ```
-@article{deng2025edge,
-  title={Edge Intelligence with Spiking Neural Networks},
-  author={Deng, Shuiguang and Yu, Di and Lv, Changze and Du, Xin and Jiang, Linshan and Zhao, Xiaofan and Tong, Wentao and Zheng, Xiaoqing and Fang, Weijia and Zhao, Peng and others},
-  journal={arXiv preprint arXiv:2507.14069},
-  year={2025}
+@inproceedings{
+liao2026frequency,
+title={Frequency Matching in Spiking Neural Networks for mmWave Sensing},
+author={Zhenyu Liao and Di Yu and Changze Lv and Wentao Tong and Linshan Jiang and Sijie Ji and Xin Du and Hailiang Zhao and Xiaoqing Zheng and Shuiguang Deng},
+booktitle={Forty-third International Conference on Machine Learning},
+year={2026}
+}
+
+@inproceedings{
+anonymous2026shiftlif,
+title={ShiftLIF: Efficient Multi-Level Spiking Neurons with Power-of-Two Quantization},
+author={Kaiwen Tang, Di Yu, Jiaqi Zheng, Changze Lv, Qianhui Liu, Zhanglu Yan, Weng-Fai Wong},
+booktitle={34th ACM International Conference on Multimedia},
+year={2026}
 }
 ```
 
-**This code may not be used, copied, or distributed without prior written permission from the authors.**
-
- -->
-
-
-
 ## License
 
-SOUL-NeuSim is released under the [Apache-2.0 License](./LICENSE). All datasets used in this project are intended for academic research purposes only.
+Soul is released under the [Apache-2.0 License](./LICENSE). All datasets used in this project are intended for academic research purposes only.
